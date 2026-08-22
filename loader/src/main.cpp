@@ -46,7 +46,7 @@ static void* bootstrap_thread(void*) {
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     (void)vm; (void)reserved;
-    LOGI("JNI_OnLoad: ADoFai Mobile Level Loader v1.1.6");
+    LOGI("JNI_OnLoad: ADoFai Mobile Level Loader v1.1.7");
     // Coexistence note: if the original example libTool.so is also loaded,
     // we isolate our rendering to Unity's main GL context only (see
     // render.cpp) so the two tools can run side by side.

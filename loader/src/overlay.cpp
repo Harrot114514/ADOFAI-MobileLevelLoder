@@ -143,10 +143,15 @@ static void apply_theme(float scale) {
 static const char* kSystemFonts[] = {
     "/system/fonts/NotoSansCJK-Regular.ttc",
     "/system/fonts/NotoSansSC-Regular.otf",
+    "/system/fonts/NotoSansCJKsc-Regular.otf",
     "/system/fonts/MiSans-Regular.ttf",
     "/system/fonts/MiSans-Demibold.ttf",
     "/system/fonts/DroidSansFallback.ttf",
-    "/system/fonts/NotoSansCJKsc-Regular.otf",
+    "/system/fonts/DroidSansFallbackFull.ttf",
+    "/system/fonts/OPPOSans-Regular.ttf",
+    "/system/fonts/OPPOSansOS2-Regular.ttf",
+    "/system/fonts/HarmonyOS_Sans_SC_Regular.ttf",
+    "/system/fonts/Roboto-Regular.ttf",
 };
 
 static bool file_exists(const char* p) {
@@ -182,8 +187,8 @@ static bool font_file_supported(const char* path) {
                    ((uint32_t)hdr[2] << 8) | (uint32_t)hdr[3];
     if (tag == 0x00010000) return true; // plain TTF
     if (tag != 0x74746366 /*'ttcf'*/) return false;
-    uint32_t off = ((uint32_t)hdr[8] << 24) | ((uint32_t)hdr[9] << 16) |
-                   ((uint32_t)hdr[10] << 8) | (uint32_t)hdr[11];
+    uint32_t off = ((uint32_t)hdr[12] << 24) | ((uint32_t)hdr[13] << 16) |
+                   ((uint32_t)hdr[14] << 8) | (uint32_t)hdr[15];
     f = fopen(path, "rb");
     if (!f) return false;
     if (fseek(f, (long)off, SEEK_SET) != 0) { fclose(f); return false; }
@@ -224,8 +229,20 @@ static bool  g_inited = false;
 static bool  g_open = false;
 static float g_scale = 1.0f;
 
-static char g_cwd[1024] = "/storage/emulated/0/Android/data/com.fizzd.connectedworlds/";
-static const char* kDefaultDir = "/storage/emulated/0/Android/data/com.fizzd.connectedworlds/";
+static char g_cwd[1024] = "";
+static char g_default_dir[512] = "";
+
+// Runtime-resolved default dir (game data dir root, derived from
+// /proc/self/cmdline) - no hard-coded package name.
+static void init_default_dir() {
+    if (g_default_dir[0]) return;
+    char base[512];
+    snprintf(base, sizeof(base), "%s", get_data_dir()); // .../Android/data/<pkg>/files
+    size_t n = strlen(base);
+    if (n > 6 && strcmp(base + n - 6, "/files") == 0) base[n - 6] = 0;
+    snprintf(g_default_dir, sizeof(g_default_dir), "%s/", base);
+    if (!g_cwd[0]) snprintf(g_cwd, sizeof(g_cwd), "%s", g_default_dir);
+}
 
 struct FsEntry {
     std::string name;
@@ -247,7 +264,8 @@ static void set_status(int kind, const char* zh, const char* en) {
 // -------------------------------------------------------------- settings
 
 static void settings_path(char* out, size_t n) {
-    snprintf(out, n, "%sfiles/adofai_loader.ini", kDefaultDir);
+    init_default_dir();
+    snprintf(out, n, "%sfiles/adofai_loader.ini", g_default_dir);
 }
 
 static void load_settings() {
@@ -437,7 +455,7 @@ static void feed_im_touches() {
 
 // -------------------------------------------------------------- settings page
 
-static int g_page = 0; // 0 = file browser, 1 = settings
+static int g_page = 0; // 0 = file browser, 1 = game, 2 = settings
 
 // Phone-settings-style toggle switch (sliding pill), theme-aware.
 // Returns true when the value changed.
@@ -483,6 +501,27 @@ static bool ToggleSwitch(const char* label, bool* v) {
     return clicked;
 }
 
+static void draw_game_page() {
+    ImGui::Text("%s", S("游戏选项 / Game options", "Game options"));
+    ImGui::Spacing();
+    if (ToggleSwitch(S("不败模式 (No Fail)", "No Fail"), &g_nofail_setting)) {
+        game_set_no_fail(g_nofail_setting);
+        save_settings();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // return to the mobile main menu (clean quit, bypasses the game's own
+    // buggy PC-leftover quit path)
+    if (ImGui::Button(S("返回主页面", "Back to main menu"), ImVec2(-1, 0))) {
+        g_open = false;
+        input_set_ui_open(false);
+        game_queue_quit_to_mobile_menu();
+    }
+}
+
 static void draw_settings_page() {
     ImGui::Text("%s", S("语言 / Language", "Language"));
     ImGui::Spacing();
@@ -516,17 +555,6 @@ static void draw_settings_page() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    ImGui::Text("%s", S("游戏选项 / Game options", "Game options"));
-    ImGui::Spacing();
-    if (ToggleSwitch(S("不败模式 (No Fail)", "No Fail"), &g_nofail_setting)) {
-        game_set_no_fail(g_nofail_setting);
-        save_settings();
-    }
-
-    ImGui::Spacing();
-    ImGui::Separator();
-    ImGui::Spacing();
-
     ImGui::Text("%s", S("文件选择器 / Browser", "Browser"));
     ImGui::Spacing();
     if (ToggleSwitch(S("仅显示关卡文件", "Only level files"), &g_show_only_levels)) {
@@ -538,22 +566,14 @@ static void draw_settings_page() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // return to the mobile main menu (clean quit, bypasses the game's own
-    // buggy PC-leftover quit path)
-    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.72f, 0.30f, 0.34f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.82f, 0.38f, 0.42f, 1.0f));
-    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.62f, 0.24f, 0.28f, 1.0f));
-    if (ImGui::Button(S("返回主页面", "Back to main menu"), ImVec2(-1, 0))) {
-        g_open = false;
-        input_set_ui_open(false);
-        game_queue_quit_to_mobile_menu();
+    if (ImGui::Button(S("清理日志", "Clear log"), ImVec2(-1, 0))) {
+        log_clear();
     }
-    ImGui::PopStyleColor(3);
 
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.1.6", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+    ImGui::TextDisabled("%s v1.1.7", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }
@@ -569,7 +589,10 @@ static void draw_file_browser() {
     float btn_w = (ImGui::GetContentRegionAvail().x - 2 * ImGui::GetStyle().ItemSpacing.x) / 2.0f;
     if (ImGui::Button(S("上一级", "Up"), ImVec2(btn_w, 0))) go_up();
     ImGui::SameLine();
-    if (ImGui::Button(S("游戏数据目录", "Game data dir"), ImVec2(btn_w, 0))) set_cwd(kDefaultDir);
+    if (ImGui::Button(S("游戏数据目录", "Game data dir"), ImVec2(btn_w, 0))) {
+        init_default_dir();
+        set_cwd(g_default_dir);
+    }
     if (ImGui::Button(S("/sdcard", "/sdcard"), ImVec2(btn_w, 0))) set_cwd("/sdcard/");
     ImGui::SameLine();
     if (ImGui::Button(S("根目录", "Root /"), ImVec2(btn_w, 0))) set_cwd("/");
@@ -744,15 +767,19 @@ static void draw_overlay(float w, float h) {
     }
     if (g_open) {
         // page tabs
-        float tab_w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+        float tab_w = (ImGui::GetContentRegionAvail().x - 2 * ImGui::GetStyle().ItemSpacing.x) / 3.0f;
         if (ImGui::Button(g_page == 0 ? S("▣ 文件选择", "> Files") : S("□ 文件选择", "  Files"), ImVec2(tab_w, 0)))
             g_page = 0;
         ImGui::SameLine();
-        if (ImGui::Button(g_page == 1 ? S("▣ 设置", "> Settings") : S("□ 设置", "  Settings"), ImVec2(tab_w, 0)))
+        if (ImGui::Button(g_page == 1 ? S("▣ 游戏", "> Game") : S("□ 游戏", "  Game"), ImVec2(tab_w, 0)))
             g_page = 1;
+        ImGui::SameLine();
+        if (ImGui::Button(g_page == 2 ? S("▣ 设置", "> Settings") : S("□ 设置", "  Settings"), ImVec2(tab_w, 0)))
+            g_page = 2;
         ImGui::Separator();
 
         if (g_page == 0) draw_file_browser();
+        else if (g_page == 1) draw_game_page();
         else draw_settings_page();
     }
     ImGui::End();
@@ -776,6 +803,7 @@ bool overlay_gl_init(int fb_w, int fb_h) {
     g_scale = base / 16.0f;
 
     load_fonts(base);
+    init_default_dir();
     load_settings();      // BEFORE apply_theme so the saved theme takes effect
     apply_theme(g_scale);
 

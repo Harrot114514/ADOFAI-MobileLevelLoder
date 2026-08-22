@@ -13,6 +13,10 @@ enum { LOG_INFO = 1, LOG_WARN = 2, LOG_ERROR = 3 };
 void log_line(int level, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
 void log_info(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
 void log_error(const char* fmt, ...) __attribute__((format(printf, 1, 2)));
+// Delete the on-disk log file (next log line recreates it).
+void log_clear();
+// The game data dir base (resolved from /proc/self/cmdline at runtime).
+const char* get_data_dir();
 #ifdef __cplusplus
 }
 #endif

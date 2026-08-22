@@ -17,15 +17,41 @@ static std::mutex g_log_mutex;
 static FILE* g_log_file = nullptr;
 static bool g_log_tried = false;
 
+// The game data dir base, resolved at runtime from /proc/self/cmdline
+// (the process name == the package name), so renaming the package doesn't
+// break the tool.
+static char g_data_dir[512] = "";
+
+static void resolve_data_dir() {
+    if (g_data_dir[0]) return;
+    char cmdline[256] = "";
+    FILE* f = fopen("/proc/self/cmdline", "rb");
+    if (f) {
+        size_t n = fread(cmdline, 1, sizeof(cmdline) - 1, f);
+        fclose(f);
+        cmdline[n] = 0;
+    }
+    const char* pkg = cmdline[0] ? cmdline : "com.fizzd.connectedworlds";
+    snprintf(g_data_dir, sizeof(g_data_dir),
+             "/storage/emulated/0/Android/data/%s/files", pkg);
+}
+
+const char* get_data_dir() {
+    resolve_data_dir();
+    return g_data_dir;
+}
+
 static void log_file_open() {
     if (g_log_file || g_log_tried) return;
     g_log_tried = true;
-    const char* base = "/storage/emulated/0/Android/data/com.fizzd.connectedworlds/files";
-    char dir[600];
-    snprintf(dir, sizeof(dir), "%s/log", base);
+    resolve_data_dir();
+    char dir[700];
+    snprintf(dir, sizeof(dir), "%s/log", g_data_dir);
+    char base[600];
+    snprintf(base, sizeof(base), "%s", g_data_dir);
     mkdir(base, 0777);
     mkdir(dir, 0777);
-    char path[700];
+    char path[800];
     snprintf(path, sizeof(path), "%s/adofailoader.log", dir);
     g_log_file = fopen(path, "a");
 }
@@ -69,6 +95,19 @@ void log_error(const char* fmt, ...) {
     vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
     log_line(LOG_ERROR, "%s", msg);
+}
+
+void log_clear() {
+    {
+        std::lock_guard<std::mutex> lk(g_log_mutex);
+        if (g_log_file) { fclose(g_log_file); g_log_file = nullptr; }
+    }
+    // NOTE: do NOT call LOGI while holding g_log_mutex (log_line locks it
+    // again -> deadlock). Build the path outside the lock.
+    char path[700];
+    snprintf(path, sizeof(path), "%s/log/adofailoader.log", g_data_dir);
+    remove(path);
+    log_line(LOG_INFO, "log: cleared");
 }
 
 static uint64_t g_found_base = 0;
