@@ -5,6 +5,22 @@
 
 ---
 
+## v1.1.6（2026-08-22）
+
+### 问题修复
+- **部分设备启动崩溃（stbtt 字体解析断言）**：测试反馈 OnePlus/Android 16
+  设备上 `stbtt_InitFont(): failed to parse FontData` 崩溃（imgui_draw.cpp:4729
+  断言 → SIGABRT）。根因：部分 OEM 设备的系统字体
+  NotoSansCJK-Regular.ttc 为 CFF/OTTO 轮廓格式，stb_truetype 无法解析。
+  修复：加载系统字体前**校验字体文件魔数**——仅接受 TTF(0x00010000) 或
+  TTC(ttcf) 内首个字体为 TrueType 的文件，不支持的直接跳过
+  （内嵌字体子集兜底，UI 不受影响，仅文件名中文可能回退为 ?）。
+
+### 版本
+- 工具内版本号同步至 **v1.1.6**（JNI_OnLoad 日志 + 设置页）。
+
+---
+
 ## v1.1.5（2026-08-22）
 
 ### 问题修复

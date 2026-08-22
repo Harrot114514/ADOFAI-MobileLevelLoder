@@ -167,6 +167,35 @@ static const ImWchar kRanges[] = {
     0,
 };
 
+// Validate that a font file is stb_truetype-compatible (TrueType outlines).
+// Some OEM devices ship NotoSansCJK as CFF/OTTO fonts which stb cannot parse
+// and ImGui's font loader asserts -> crash. Only accept 0x00010000 (TTF) or
+// ttcf collections whose first font is TrueType.
+static bool font_file_supported(const char* path) {
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    unsigned char hdr[12];
+    size_t n = fread(hdr, 1, 12, f);
+    fclose(f);
+    if (n < 12) return false;
+    uint32_t tag = ((uint32_t)hdr[0] << 24) | ((uint32_t)hdr[1] << 16) |
+                   ((uint32_t)hdr[2] << 8) | (uint32_t)hdr[3];
+    if (tag == 0x00010000) return true; // plain TTF
+    if (tag != 0x74746366 /*'ttcf'*/) return false;
+    uint32_t off = ((uint32_t)hdr[8] << 24) | ((uint32_t)hdr[9] << 16) |
+                   ((uint32_t)hdr[10] << 8) | (uint32_t)hdr[11];
+    f = fopen(path, "rb");
+    if (!f) return false;
+    if (fseek(f, (long)off, SEEK_SET) != 0) { fclose(f); return false; }
+    unsigned char h2[4];
+    n = fread(h2, 1, 4, f);
+    fclose(f);
+    if (n < 4) return false;
+    uint32_t t2 = ((uint32_t)h2[0] << 24) | ((uint32_t)h2[1] << 16) |
+                  ((uint32_t)h2[2] << 8) | (uint32_t)h2[3];
+    return t2 == 0x00010000;
+}
+
 static void load_fonts(float px) {
     ImGuiIO& io = ImGui::GetIO();
     ImFontConfig cfg;
@@ -175,9 +204,10 @@ static void load_fonts(float px) {
     // primary: embedded subset (guaranteed to render all UI text)
     io.Fonts->AddFontFromMemoryTTF((void*)g_font_subset_ttf, (int)g_font_subset_ttf_len,
                                    px, &cfg, kRanges);
-    // fallback: system CJK font for arbitrary file names
+    // fallback: system CJK font for arbitrary file names (TrueType only;
+    // CFF/OTTO variants are skipped to avoid ImGui's stb assert)
     for (const char* p : kSystemFonts) {
-        if (file_exists(p)) {
+        if (file_exists(p) && font_file_supported(p)) {
             ImFontConfig cfg2 = cfg;
             cfg2.MergeMode = true;
             cfg2.FontDataOwnedByAtlas = false;
@@ -523,7 +553,7 @@ static void draw_settings_page() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.1.5", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+    ImGui::TextDisabled("%s v1.1.6", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }
