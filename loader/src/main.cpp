@@ -6,6 +6,7 @@
 #include <jni.h>
 #include <pthread.h>
 #include <unistd.h>
+#include <dlfcn.h>
 #include <string.h>
 
 // Worker: waits for the game's il2cpp runtime, resolves the API and installs
@@ -45,7 +46,13 @@ static void* bootstrap_thread(void*) {
 
 extern "C" JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved) {
     (void)vm; (void)reserved;
-    LOGI("JNI_OnLoad: ADoFai Mobile Level Loader v1.0 (正式版)");
+    LOGI("JNI_OnLoad: ADoFai Mobile Level Loader v1.1.5");
+    // Coexistence note: if the original example libTool.so is also loaded,
+    // we isolate our rendering to Unity's main GL context only (see
+    // render.cpp) so the two tools can run side by side.
+    if (dlopen("libTool.so", RTLD_NOLOAD)) {
+        LOGI("JNI_OnLoad: libTool detected - coexistence mode");
+    }
     pthread_t th;
     pthread_attr_t attr;
     pthread_attr_init(&attr);

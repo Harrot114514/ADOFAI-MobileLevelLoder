@@ -15,6 +15,7 @@
 // eglSwapBuffers original
 typedef EGLBoolean (*pfn_eglSwapBuffers)(EGLDisplay dpy, EGLSurface surface);
 static pfn_eglSwapBuffers orig_eglSwapBuffers = nullptr;
+static EGLContext g_main_context = EGL_NO_CONTEXT;
 
 static bool  g_gl_ready = false;
 static void* g_last_context = nullptr;
@@ -46,18 +47,29 @@ static void ensure_gl_ready(EGLDisplay dpy, EGLSurface surf) {
 }
 
 extern "C" EGLBoolean hk_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
-    // draw the overlay on top of Unity's frame before presenting
+    // draw the overlay on top of Unity's frame before presenting.
+    // IMPORTANT: only render on Unity's main GL context. Other overlay tools
+    // (e.g. the original libTool) render on their own EGL surfaces; touching
+    // their context here would corrupt their state -> crash. Coexistence:
+    // foreign contexts pass through untouched.
     if (orig_eglSwapBuffers) {
-        ensure_gl_ready(dpy, surface);
-        if (g_gl_ready) {
-            EGLint w = 0, h = 0;
-            eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
-            eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
-            if (w > 0 && h > 0) {
-                GLint vp[4];
-                glGetIntegerv(GL_VIEWPORT, vp);
-                overlay_render_frame((int)w, (int)h);
-                glViewport(vp[0], vp[1], vp[2], vp[3]);
+        EGLContext ctx = eglGetCurrentContext();
+        if (g_main_context == EGL_NO_CONTEXT && ctx != EGL_NO_CONTEXT) {
+            g_main_context = ctx;
+            LOGI("render: main GL context captured");
+        }
+        if (ctx == g_main_context) {
+            ensure_gl_ready(dpy, surface);
+            if (g_gl_ready) {
+                EGLint w = 0, h = 0;
+                eglQuerySurface(dpy, surface, EGL_WIDTH, &w);
+                eglQuerySurface(dpy, surface, EGL_HEIGHT, &h);
+                if (w > 0 && h > 0) {
+                    GLint vp[4];
+                    glGetIntegerv(GL_VIEWPORT, vp);
+                    overlay_render_frame((int)w, (int)h);
+                    glViewport(vp[0], vp[1], vp[2], vp[3]);
+                }
             }
         }
     }

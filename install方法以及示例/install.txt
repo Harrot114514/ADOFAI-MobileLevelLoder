@@ -36,14 +36,21 @@ ImGui 界面，hook UnityEngine.Input 拦截/捕获触摸，hook 关卡加载
 
 【使用】
 - 点按悬浮按钮 → 打开加载器（游戏中会自动暂停）；
-  按住悬浮按钮拖动可移动其位置。
+  按住悬浮按钮拖动可移动其位置；
+  拖到屏幕左/右边缘附近松手 → 自动像悬浮球一样贴边隐藏（露出 1/4），
+  点露出的部分即可再拖出来。
 - 默认目录为游戏数据目录
   /storage/emulated/0/Android/data/com.fizzd.connectedworlds/
   把 .adofai 及其同目录歌曲/图片放这里（子文件夹亦可）。
 - 文件列表支持触摸滑动、滚动条、▲▼按钮；点选 .adofai 后按
   「▶ 加载所选关卡」→ 自动转场进入关卡（铺面、音乐、背景齐全）。
-- 「▣ 设置」页可切换 语言（中文/English）与 主题（暗色/亮色），
-  自动保存到 files/adofai_loader.ini。
+- 「▣ 设置」页：
+  · 语言（中文/English）、主题（暗色/亮色）
+  · 游戏选项：不败模式（No Fail）开关、难度选择（宽/普通/严）
+  · 文件选择器：仅显示关卡文件
+  全部自动保存到 files/adofai_loader.ini。
+- 工具日志：logcat（tag ADoFaiLoader）+ 文件
+  files/log/adofailoader.log（[I]/[W]/[E] 分级）。
 
 【卸载】
 删除注入的 loadLibrary 两行代码重打包，或直接卸载游戏。

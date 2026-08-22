@@ -8,6 +8,7 @@
 static char g_last_load[512] = "";
 static int g_paused = 0; static int g_pause_count = 0;
 bool game_load_level(const char* p) { snprintf(g_last_load, sizeof(g_last_load), "%s", p); return true; }
+void game_apply_queued_options() {}
 bool game_ready() { return true; }
 bool game_init() { return true; }
 bool game_in_gameplay_scene() { return false; }
@@ -97,8 +98,9 @@ int main() {
     assert(!input_button_tapped()); // drag, not a tap
     float x0, y0, x1, y1;
     input_get_button_rect(&x0, &y0, &x1, &y1);
-    printf("s1b: button rect after drag: (%.0f,%.0f)-(%.0f,%.0f) (expect y0=140, clamped)\n", x0, y0, x1, y1);
-    assert(y0 == 140.0f && x0 == 10.0f && x1 == 160.0f); // moved vertically, clamped at bottom
+    printf("s1b: button rect after drag: (%.0f,%.0f)-(%.0f,%.0f) (expect tucked near left edge)\n", x0, y0, x1, y1);
+    // released near the left edge -> floating-ball tuck (25% visible)
+    assert(x0 < 0.0f && x1 == 37.5f && y0 == 140.0f); // tucked left, y preserved
     // consume any queued tapped flag
     input_button_tapped();
 

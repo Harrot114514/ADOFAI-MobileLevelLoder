@@ -97,6 +97,7 @@ static void process_main_thread_actions() {
             g_pending_load.clear();
         }
     }
+    game_apply_queued_options();
 }
 
 static bool in_button(float x, float y) {
@@ -176,6 +177,20 @@ extern "C" int32_t hk_get_touchCount() {
                     }
                 } else if (t.phase == 3 || t.phase == 4) { // Ended / Canceled
                     if (!g_btn_moved) g_button_tapped.store(true);
+                    else {
+                        // floating-ball behavior: near a horizontal edge, tuck
+                        // the button so only ~25% stays visible
+                        std::lock_guard<std::mutex> lk(g_btn_mutex);
+                        float bw = g_btn[2] - g_btn[0];
+                        float visible = bw * 0.25f;
+                        if (g_btn[0] < g_display_w * 0.15f) {
+                            g_btn[0] = -(bw - visible);
+                            g_btn[2] = visible;
+                        } else if (g_btn[2] > g_display_w * 0.85f) {
+                            g_btn[0] = g_display_w - visible;
+                            g_btn[2] = g_display_w + (bw - visible);
+                        }
+                    }
                     g_btn_finger = -1;
                 }
             }

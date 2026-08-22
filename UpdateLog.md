@@ -5,6 +5,86 @@
 
 ---
 
+## v1.1.5（2026-08-22）
+
+### 问题修复
+- **暂停菜单退出崩溃**：游戏 PC 遗留退出路径把 `&局部字符串`（栈指针）传给
+  引擎字符串函数导致崩溃（字符串比较/场景名污染同族问题）。最终方案：
+  **放弃修补游戏退出路径**，改为工具内自建「返回主页面」按钮（设置页，
+  红色按钮）——走我们自己的干净退出：清空 customLevelPaths/internalLevelName
+  后直接 `SceneManager.LoadScene("scnMobileMenu")`，完全绕开游戏的 bug 路径。
+  同时移除之前尝试的 scnCLS 重定向 hook 与字符串比较 hook。
+- **开关微调**：缩小至 36×18×scale，标签与开关垂直居中对齐。
+- **不败模式启动默认关闭**：设置记忆但不再自动应用，每次启动强制 false。
+
+### 更改
+- **移除工具内难度选择器**：难度已 ShowAll（右下角指示器全显示），
+  工具里的难度选择失去意义（底层 GCS.difficulty 接口保留备用）。
+
+### 版本
+- 工具内版本号同步至 **v1.1.5**（JNI_OnLoad 日志 + 设置页）。
+
+---
+
+## v1.1.4（2026-08-22）
+
+### 问题修复
+- **开关大小修改**：手机设置风格开关缩小（42×22×scale，原 56×30）。
+
+### 新增
+- **显示自定义关卡难度指示器**：hook `DetermineDifficultyUIMode(highestBPM)`，
+  自定义关卡挂起时强制返回 **ShowAll** → 游戏右下角出现难度指示器
+  （移动版默认跳过的 PC 行为）。
+- **暂停菜单设置按钮修复**：hook `SceneManager.LoadScene(string)` 与
+  `LoadScene(string, LoadSceneMode)`——任何尝试加载 `scnCLS`（PC 选关场景，
+  移动版不含）的调用自动改道 `scnMobileMenu`（移动端主页），
+  修复点击设置按钮报错并卡黑屏加载的问题。
+
+---
+
+## v1.1.3（2026-08-22）
+
+### 修改
+- **手机设置风格开关**：自绘滑动胶囊开关控件（ToggleSwitch），替换原来的
+  Selectable 开关：
+  - 开启：双缩脲紫轨道（#8C5CB5）+ 白色滑块；关闭：深色主题=深灰 /
+    亮色主题=浅灰轨道；悬停时轨道提亮
+  - 应用于「不败模式 (No Fail)」与「仅显示关卡文件」两个开关
+  - 尺寸随屏幕缩放（56×30×scale），触摸友好；状态持久化与游戏侧应用逻辑不变
+- **libTool 共存**：明确搁置。GL 上下文隔离已实现并保留（只在 Unity 主上下文
+  渲染，检测到 libTool 输出 coexistence 日志），但实测双装仍会闪退，
+  现版本不再追求共存（待后续提供崩溃日志再排查）。
+
+---
+
+## v1.1.2（2026-08-22）
+
+### 问题修复
+- **官方关卡歌曲**：移除 ReloadSongCo 内三个无条件补丁（强制自定义分支/异常出口/回边）——
+  它们会把官方关卡的内置歌曲路径也改坏。自定义关卡改由条件性
+  get_isInternalLevel hook 处理，官方关卡路径完全不动。
+- **谷歌校验**：配合 RemoveVerification.md（PairIP 许可证 SDK 两处 smali 修改）。
+- **APKVISION 站打包版**：其注入的 libAPKVISION.so（反篡改库）与本工具不兼容，
+  安装时删除该 lib（install.txt 已注明）。
+- **尝试与原 libTool 共存闪退**：eglSwapBuffers hook 增加 **GL 上下文隔离**—— 但是失败
+  只在 Unity 主上下文渲染，libTool 的 SurfaceView 上下文直接放行；
+  检测到 libTool 时日志标记 coexistence mode。
+- **adofai 过滤框选修复**：从文件页移到「▣ 设置」页，改为 Selectable 开关样式。
+
+### 新增
+- **悬浮球贴边隐藏**：拖动靠近屏幕左/右边缘松手 → 自动像悬浮球一样隐藏
+  （露出 1/4），点击露出部分可再拖出（宿主机测试已覆盖）。
+- **难度选择**：GCS.difficulty（宽 Lenient / 普通 Normal / 严 Strict），
+  设置页选择，主线程应用，持久化。（注：右下角不会显示）
+- **不败模式开关**：GCS.useNoFail + scrController.noFail 同步写入（游戏中
+  bool），设置页开关，持久化。
+- **文件日志**：日志输出到 files/log/adofailoader.log（追加），
+  与 logcat 双写；分级 [I]/[W]/[E]（LOGI/LOGW/LOGE）。
+- **UI 开关**：设置页新增「游戏选项」与「文件选择器」分组
+  （不败模式、难度、仅显示关卡文件）。
+
+---
+
 ## v1.0 正式版（2026-08-21）
 
 ### 功能

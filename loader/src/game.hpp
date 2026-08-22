@@ -29,6 +29,21 @@ bool game_in_gameplay_scene();
 // branch (get_isInternalLevel reports false) and normalize the level path.
 bool game_install_load_level_hooks();
 
+// If a custom level is pending (GCS.customLevelPaths != null), make sure
+// GCS.internalLevelName is null. Called from the load-level entry hooks.
+void game_force_custom_state();
+
+// NoFail (不败) / difficulty controls. Queued to the game main thread.
+bool game_set_no_fail(bool on);     // returns whether it was applied
+bool game_set_difficulty(int level); // 0=Lenient 1=Normal 2=Strict
+bool game_get_no_fail();             // current GCS.useNoFail
+int  game_get_difficulty();          // current GCS.difficulty
+// Apply queued option changes. Call on the game main thread.
+void game_apply_queued_options();
+// Queue a clean quit to the mobile main menu (bypasses the game's own buggy
+// PC-leftover quit path).
+void game_queue_quit_to_mobile_menu();
+
 // Replace a possibly-wrong level path with customLevelPaths[0] when a custom
 // level is pending. Pointer comparison only.
 void* game_fix_level_path(void* path);

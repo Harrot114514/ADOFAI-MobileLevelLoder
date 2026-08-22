@@ -31,6 +31,8 @@ static Lang g_lang = LANG_ZH;
 
 enum Theme { THEME_DARK, THEME_LIGHT };
 static Theme g_theme = THEME_DARK;
+static bool g_nofail_setting = false;   // 不败模式
+static int  g_diff_setting = 1;         // 难度: 0=宽松 1=普通 2=严格
 
 static const ImVec4 kViolet       = ImVec4(0.55f, 0.36f, 0.71f, 1.0f);
 static const ImVec4 kVioletHover  = ImVec4(0.65f, 0.47f, 0.80f, 1.0f);
@@ -226,22 +228,32 @@ static void load_settings() {
     char line[1200];
     if (fgets(line, sizeof(line), f)) {
         char* nl = strchr(line, '\n'); if (nl) *nl = 0;
-        // format: lang|theme|cwd  (old format: lang|cwd -> theme defaults dark)
-        char* s1 = line;
-        char* s2 = strchr(s1, '|');
-        if (!s2) { fclose(f); return; }
-        *s2++ = 0;
-        char* s3 = strchr(s2, '|');
-        if (s3) *s3++ = 0;
-        g_lang = (strncmp(s1, "en", 2) == 0) ? LANG_EN : LANG_ZH;
-        if (s3 && strncmp(s2, "light", 5) == 0) g_theme = THEME_LIGHT;
-        else g_theme = THEME_DARK;
-        const char* dir = s3 ? s3 : s2;
-        if (dir && dir[0] && strlen(dir) < sizeof(g_cwd)) {
-            snprintf(g_cwd, sizeof(g_cwd), "%s", dir);
+        // format: lang|theme|cwd|nofail|diff|filter
+        // (old 2/3-field files: theme defaults dark, options default)
+        char* fields[8];
+        int nf = 0;
+        char* tok = line;
+        while (tok && nf < 8) {
+            fields[nf++] = tok;
+            char* nxt = strchr(tok, '|');
+            if (nxt) { *nxt = 0; tok = nxt + 1; }
+            else tok = nullptr;
         }
+        g_lang = (nf > 0 && strncmp(fields[0], "en", 2) == 0) ? LANG_EN : LANG_ZH;
+        g_theme = (nf > 1 && strncmp(fields[1], "light", 5) == 0) ? THEME_LIGHT : THEME_DARK;
+        if (nf > 2 && fields[2][0] && strlen(fields[2]) < sizeof(g_cwd)) {
+            snprintf(g_cwd, sizeof(g_cwd), "%s", fields[2]);
+        }
+        if (nf > 3) g_nofail_setting = (fields[3][0] == '1');
+        if (nf > 4) g_diff_setting = atoi(fields[4]);
+        if (nf > 5) g_show_only_levels = (fields[5][0] == '1');
+        if (g_diff_setting < 0 || g_diff_setting > 2) g_diff_setting = 1;
     }
     fclose(f);
+    // 不败模式每次启动默认关闭（设置仅记忆但不自动应用）
+    g_nofail_setting = false;
+    game_set_no_fail(false);
+    game_set_difficulty(g_diff_setting);
 }
 
 static void save_settings() {
@@ -253,10 +265,13 @@ static void save_settings() {
     if (slash) { *slash = 0; mkdir(dir, 0777); }
     FILE* f = fopen(p, "w");
     if (!f) return;
-    fprintf(f, "%s|%s|%s\n",
+    fprintf(f, "%s|%s|%s|%d|%d|%d\n",
             g_lang == LANG_EN ? "en" : "zh",
             g_theme == THEME_LIGHT ? "light" : "dark",
-            g_cwd);
+            g_cwd,
+            g_nofail_setting ? 1 : 0,
+            g_diff_setting,
+            g_show_only_levels ? 1 : 0);
     fclose(f);
 }
 
@@ -394,6 +409,50 @@ static void feed_im_touches() {
 
 static int g_page = 0; // 0 = file browser, 1 = settings
 
+// Phone-settings-style toggle switch (sliding pill), theme-aware.
+// Returns true when the value changed.
+static bool ToggleSwitch(const char* label, bool* v) {
+    ImGuiStyle& st = ImGui::GetStyle();
+    float W = 36.0f * g_scale;
+    float H = 18.0f * g_scale;
+    ImVec2 p = ImGui::GetCursorScreenPos();
+    // align the label with the switch's vertical center
+    ImGui::InvisibleButton(label, ImVec2(W, H));
+    bool hovered = ImGui::IsItemHovered();
+    bool clicked = ImGui::IsItemClicked();
+    if (clicked) *v = !*v;
+
+    ImDrawList* dl = ImGui::GetWindowDrawList();
+    bool on = *v;
+    float r = H * 0.5f;
+    // track: biuret violet when on; neutral grey when off (theme aware)
+    ImU32 track;
+    if (on) {
+        track = IM_COL32(140, 92, 181, 255);
+        if (hovered) track = IM_COL32(158, 110, 196, 255);
+    } else {
+        track = (g_theme == THEME_DARK) ? IM_COL32(90, 88, 98, 220)
+                                        : IM_COL32(196, 194, 206, 255);
+        if (hovered) track = (g_theme == THEME_DARK) ? IM_COL32(106, 104, 114, 230)
+                                                     : IM_COL32(186, 184, 198, 255);
+    }
+    dl->AddRectFilled(p, ImVec2(p.x + W, p.y + H), track, r);
+
+    // knob
+    float kr = r - 3.0f * g_scale;
+    float kx = on ? (p.x + W - kr - 3.0f * g_scale) : (p.x + kr + 3.0f * g_scale);
+    dl->AddCircleFilled(ImVec2(kx, p.y + r), kr, IM_COL32(255, 255, 255, 255));
+
+    // label vertically centered on the switch
+    ImVec2 ts = ImGui::CalcTextSize(label);
+    float ly = p.y + (H - ts.y) * 0.5f;
+    ImGui::SetCursorScreenPos(ImVec2(p.x + W + 10.0f * g_scale, ly));
+    ImGui::TextUnformatted(label);
+    // advance the row to below the switch
+    ImGui::SetCursorScreenPos(ImVec2(p.x, p.y + H + st.ItemSpacing.y));
+    return clicked;
+}
+
 static void draw_settings_page() {
     ImGui::Text("%s", S("语言 / Language", "Language"));
     ImGui::Spacing();
@@ -426,7 +485,45 @@ static void draw_settings_page() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.0", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+
+    ImGui::Text("%s", S("游戏选项 / Game options", "Game options"));
+    ImGui::Spacing();
+    if (ToggleSwitch(S("不败模式 (No Fail)", "No Fail"), &g_nofail_setting)) {
+        game_set_no_fail(g_nofail_setting);
+        save_settings();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Text("%s", S("文件选择器 / Browser", "Browser"));
+    ImGui::Spacing();
+    if (ToggleSwitch(S("仅显示关卡文件", "Only level files"), &g_show_only_levels)) {
+        scan_dir();
+        save_settings();
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // return to the mobile main menu (clean quit, bypasses the game's own
+    // buggy PC-leftover quit path)
+    ImGui::PushStyleColor(ImGuiCol_Button, ImVec4(0.72f, 0.30f, 0.34f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, ImVec4(0.82f, 0.38f, 0.42f, 1.0f));
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, ImVec4(0.62f, 0.24f, 0.28f, 1.0f));
+    if (ImGui::Button(S("返回主页面", "Back to main menu"), ImVec2(-1, 0))) {
+        g_open = false;
+        input_set_ui_open(false);
+        game_queue_quit_to_mobile_menu();
+    }
+    ImGui::PopStyleColor(3);
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::TextDisabled("%s v1.1.5", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }
@@ -447,9 +544,6 @@ static void draw_file_browser() {
     ImGui::SameLine();
     if (ImGui::Button(S("根目录", "Root /"), ImVec2(btn_w, 0))) set_cwd("/");
     ImGui::SameLine();
-    if (ImGui::Checkbox(S("仅显示关卡文件", "Only level files"), &g_show_only_levels)) scan_dir();
-
-    // theme toggle
     if (ImGui::Button(S("刷新列表", "Refresh list"), ImVec2(-1, 0))) scan_dir();
 
     ImGui::Separator();

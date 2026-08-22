@@ -37,6 +37,8 @@ static FieldInfo*    fld_customLevelPaths = nullptr;   // string[]
 static FieldInfo*    fld_internalLevelName = nullptr;  // string
 static FieldInfo*    fld_customLevelId = nullptr;      // string
 static FieldInfo*    fld_sceneToLoad = nullptr;        // string
+static FieldInfo*    fld_useNoFail = nullptr;          // bool
+static FieldInfo*    fld_difficulty = nullptr;         // int32 (Difficulty enum)
 
 // methods invoked via il2cpp_runtime_invoke (safe: managed exceptions are
 // returned instead of unwinding through our statically-linked libc++abi)
@@ -59,6 +61,8 @@ static bool resolve_bindings() {
     fld_internalLevelName  = il2cpp.class_get_field_from_name(cls_gcs, "internalLevelName");
     fld_customLevelId      = il2cpp.class_get_field_from_name(cls_gcs, "customLevelId");
     fld_sceneToLoad        = il2cpp.class_get_field_from_name(cls_gcs, "sceneToLoad");
+    fld_useNoFail          = il2cpp.class_get_field_from_name(cls_gcs, "useNoFail");
+    fld_difficulty         = il2cpp.class_get_field_from_name(cls_gcs, "difficulty");
     if (!fld_customLevelIndex || !fld_customLevelPaths || !fld_internalLevelName ||
         !fld_customLevelId || !fld_sceneToLoad)
         return false;
@@ -137,6 +141,82 @@ bool game_load_level(const char* level_path) {
 bool game_in_gameplay_scene() {
     if (!game_init()) return false;
     return fn_is_scn_game();
+}
+
+// ------------------------------------------------------------------ NoFail / difficulty
+
+static bool g_queued_no_fail = false;
+static bool g_queued_no_fail_val = false;
+static bool g_queued_diff = false;
+static int  g_queued_diff_val = 0;
+static bool g_queued_quit = false;
+
+bool game_set_no_fail(bool on) {
+    g_queued_no_fail = true;
+    g_queued_no_fail_val = on;
+    return true;
+}
+
+bool game_set_difficulty(int level) {
+    if (level < 0 || level > 2) return false;
+    g_queued_diff = true;
+    g_queued_diff_val = level;
+    return true;
+}
+
+void game_apply_queued_options() {
+    if (g_queued_no_fail) {
+        g_queued_no_fail = false;
+        if (fld_useNoFail) {
+            bool b = g_queued_no_fail_val;
+            il2cpp.field_static_set_value(fld_useNoFail, &b);
+            // mirror into the live controller so mid-run changes apply
+            void* controller = fn_get_controller();
+            if (controller) *(uint8_t*)((uint8_t*)controller + 0x102) = (uint8_t)(b ? 1 : 0);
+            LOGI("game: noFail set to %d", b ? 1 : 0);
+        }
+    }
+    if (g_queued_diff) {
+        g_queued_diff = false;
+        if (fld_difficulty) {
+            int32_t d = g_queued_diff_val;
+            il2cpp.field_static_set_value(fld_difficulty, &d);
+            LOGI("game: difficulty set to %d", d);
+        }
+    }
+    if (g_queued_quit) {
+        g_queued_quit = false;
+        // clear the custom-level state so scnGame won't restart the level
+        if (cls_gcs) {
+            void* statics = *(void**)((uint8_t*)cls_gcs + 0xB8);
+            if (statics) {
+                *(void**)((uint8_t*)statics + 0x70) = nullptr; // customLevelPaths
+                *(void**)((uint8_t*)statics + 0x80) = nullptr; // internalLevelName
+            }
+        }
+        // load the mobile main menu directly (our own clean quit path)
+        typedef void (*pfn_ls)(void*);
+        ((pfn_ls)(g_il2cpp_base + 0x45D8190))(il2cpp.string_new("scnMobileMenu"));
+        LOGI("game: quit to mobile menu issued");
+    }
+}
+
+void game_queue_quit_to_mobile_menu() {
+    g_queued_quit = true;
+}
+
+bool game_get_no_fail() {
+    if (!g_ready || !fld_useNoFail) return false;
+    bool b = false;
+    il2cpp.field_static_get_value(fld_useNoFail, &b);
+    return b;
+}
+
+int game_get_difficulty() {
+    if (!g_ready || !fld_difficulty) return 1;
+    int32_t d = 1;
+    il2cpp.field_static_get_value(fld_difficulty, &d);
+    return d;
 }
 
 bool game_pause_for_overlay() {
@@ -425,7 +505,20 @@ extern "C" void* hk_RDFile_ReadAllBytes_c(void* path, void* status) {
     return orig_rd_readall(path, status);
 }
 
-// ---------------------------------------------------------------- load hooks
+// Difficulty UI: for custom levels force ShowAll so the bottom-right
+// difficulty indicator appears (PC behavior the mobile build skips).
+static const uint64_t RVA_DetermineDifficultyUIMode = 0x22805A4; // static DifficultyUIMode DetermineDifficultyUIMode(float highestBPM)
+
+typedef int32_t (*pfn_difmode)(float bpm);
+static pfn_difmode  orig_difmode = nullptr;
+
+extern "C" int32_t hk_DetermineDifficultyUIMode_c(float bpm) {
+    if (game_custom_pending()) return 3; // ShowAll
+    return orig_difmode(bpm);
+}
+
+
+
 // ---------------------------------------------------------------- load hooks
 // The game's LevelData.LoadLevel takes the INTERNAL-level branch (WorldData
 // dictionary lookups keyed by the level path, path.Split('-'), ...) whenever
@@ -605,11 +698,15 @@ bool game_install_load_level_hooks() {
         (void*)(g_il2cpp_base + RVA_RDFile_Exists), (void*)&hk_RDFile_Exists_c);
     orig_rd_readall = (pfn_readallbytes)hook_install(
         (void*)(g_il2cpp_base + RVA_RDFile_ReadAllBytes), (void*)&hk_RDFile_ReadAllBytes_c);
+    orig_difmode = (pfn_difmode)hook_install(
+        (void*)(g_il2cpp_base + RVA_DetermineDifficultyUIMode), (void*)&hk_DetermineDifficultyUIMode_c);
     // NOP the "Exists failed -> return" branch inside LoadTexture
     patch_write_u32((void*)(g_il2cpp_base + RVA_LoadTexture_exists_fail), 0xD503201F);
-    // NOTE: no skip-lookup patch - the temporary-null window (in
-    // hk_LoadTexture_c) makes LoadTexture take the proper custom-level path
-    // for filesystem paths, which does not touch the sprite registry.
+    // NOTE: no unconditional patches inside ReloadSongCo anymore. The
+    // conditional get_isInternalLevel hook handles custom levels, and the
+    // original code paths stay intact for official levels (their internal
+    // song loading must not be touched).
+    // (The Exists-fail NOP below only affects LoadTexture's file branch.)
 
     orig_loadandplay = (pfn_loadandplay)hook_install(
         (void*)(g_il2cpp_base + RVA_scnGame_LoadAndPlayLevel), (void*)&hk_LoadAndPlayLevel_c);
@@ -632,14 +729,10 @@ bool game_install_load_level_hooks() {
     orig_reloadsongco_movenext = (pfn_movenext)hook_install(
         (void*)(g_il2cpp_base + RVA_ReloadSongCo_MoveNext), (void*)&hk_ReloadSongCo_MoveNext_c);
 
-    // Rewrite the coroutine's unconditional retry branch into the bailout path.
-    // Original: b 0x252cf14  (0x17fffebe). New: b 0x252d420 (0x14000001).
-    patch_write_u32((void*)(g_il2cpp_base + RVA_ReloadSongCo_loopback), 0x14000001);
-    // Replace the get_isInternalLevel call with "mov w0, wzr" (always false,
-    // so the coroutine takes the CUSTOM-song branch).
-    patch_write_u32((void*)(g_il2cpp_base + RVA_RSC_patch_isint), 0x2A1F03E0);
-    // Replace the coroutine's raise_exception with a clean return (0x252d424).
-    patch_write_u32((void*)(g_il2cpp_base + RVA_RSC_patch_raise), 0x17FFFFCD);
+    // NOTE: no unconditional patches inside ReloadSongCo anymore. The
+    // conditional get_isInternalLevel hook handles custom levels, and the
+    // original code paths stay intact for official levels (their internal
+    // song loading must not be touched).
 
     // Skip the song machinery on custom levels (level plays silently).
     orig_reloadsong = (pfn_void_bool)hook_install(

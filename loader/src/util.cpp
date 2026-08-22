@@ -5,16 +5,70 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+#include <sys/stat.h>
+#include <mutex>
+
+// ------------------------------------------------------------------ logging
+// Every line goes to logcat AND is appended to the on-disk log:
+//   /storage/emulated/0/Android/data/com.fizzd.connectedworlds/files/log/adofailoader.log
+// Levels: [I] info / [W] warn / [E] error.
+static std::mutex g_log_mutex;
+static FILE* g_log_file = nullptr;
+static bool g_log_tried = false;
+
+static void log_file_open() {
+    if (g_log_file || g_log_tried) return;
+    g_log_tried = true;
+    const char* base = "/storage/emulated/0/Android/data/com.fizzd.connectedworlds/files";
+    char dir[600];
+    snprintf(dir, sizeof(dir), "%s/log", base);
+    mkdir(base, 0777);
+    mkdir(dir, 0777);
+    char path[700];
+    snprintf(path, sizeof(path), "%s/adofailoader.log", dir);
+    g_log_file = fopen(path, "a");
+}
+
+void log_line(int level, const char* fmt, ...) {
+    char msg[1024];
+    va_list ap;
+    va_start(ap, fmt);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
+    va_end(ap);
+
+    __android_log_print(level == LOG_ERROR ? ANDROID_LOG_ERROR :
+                        level == LOG_WARN ? ANDROID_LOG_WARN : ANDROID_LOG_INFO,
+                        TAG, "%s", msg);
+
+    std::lock_guard<std::mutex> lk(g_log_mutex);
+    if (!g_log_file) log_file_open();
+    if (g_log_file) {
+        struct timespec ts;
+        clock_gettime(CLOCK_REALTIME, &ts);
+        struct tm tmv;
+        localtime_r(&ts.tv_sec, &tmv);
+        char stamp[32];
+        strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", &tmv);
+        fprintf(g_log_file, "[%s.%03ld] [%s] %s\n", stamp, ts.tv_nsec / 1000000,
+                level == LOG_ERROR ? "E" : level == LOG_WARN ? "W" : "I", msg);
+        fflush(g_log_file);
+    }
+}
 
 void log_info(const char* fmt, ...) {
+    char msg[1024];
     va_list ap; va_start(ap, fmt);
-    __android_log_vprint(ANDROID_LOG_INFO, TAG, fmt, ap);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
+    log_line(LOG_INFO, "%s", msg);
 }
 void log_error(const char* fmt, ...) {
+    char msg[1024];
     va_list ap; va_start(ap, fmt);
-    __android_log_vprint(ANDROID_LOG_ERROR, TAG, fmt, ap);
+    vsnprintf(msg, sizeof(msg), fmt, ap);
     va_end(ap);
+    log_line(LOG_ERROR, "%s", msg);
 }
 
 static uint64_t g_found_base = 0;
