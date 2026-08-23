@@ -1,0 +1,31 @@
+name: Build ADoFAI Loader for Android
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Android NDK
+        run: |
+          wget https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+          unzip android-ndk-r27d-linux.zip
+          echo "NDK=$PWD/android-ndk-r27d" >> $GITHUB_ENV
+
+      - name: Build
+        working-directory: ./loader
+        run: |
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libadofailoader
+          path: loader/out/libadofailoader.so
