@@ -20,6 +20,8 @@ jobs:
         working-directory: ./loader
         run: |
           chmod +x build.sh
+          # 把 NDK 路径传给脚本
+          export NDK=$PWD/../android-ndk-r27d
           ./build.sh
 
       - name: Upload
