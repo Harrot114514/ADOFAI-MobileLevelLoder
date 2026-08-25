@@ -16,6 +16,10 @@ jobs:
           unzip -q android-ndk-r27d-linux.zip
           echo "NDK=$PWD/android-ndk-r27d" >> $GITHUB_ENV
 
+      - name: Setup ImGui
+        run: |
+              git clone --depth 1 https://github.com/ocornut/imgui.git imgui-master
+    
       - name: Compile
         working-directory: ./loader
         run: |
