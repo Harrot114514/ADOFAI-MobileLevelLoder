@@ -5,7 +5,21 @@
 # sysroot instead — clang is a cross-compiler by nature).
 set -e
 
-NDK=/workspace/ndk/android-ndk-r27d
+# ---- 自动寻找 NDK（如果环境变量没设置） ----
+if [ -z "$NDK" ]; then
+    # 检查当前目录或父目录是否有 android-ndk-r27d
+    if [ -d "./android-ndk-r27d" ]; then
+        NDK=$(realpath ./android-ndk-r27d)
+    elif [ -d "../android-ndk-r27d" ]; then
+        NDK=$(realpath ../android-ndk-r27d)
+    else
+        echo "ERROR: NDK not found. Please set NDK environment variable."
+        exit 1
+    fi
+    echo "NDK auto-detected: $NDK"
+fi
+# -------------------------------------------
+
 SYSROOT=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot
 SYSLIB=$SYSROOT/usr/lib/aarch64-linux-android/25
 CLANG_LIB=$NDK/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/lib
@@ -29,6 +43,7 @@ COMMON="-target $TARGET -std=c++17 -O2 -fPIC -fvisibility=hidden -fno-rtti \
  -I$SRC -I$SRC/font -I$IMGUI -I$IMGUI/backends \
  --sysroot=$SYSROOT"
 
+# 编译所有 .cpp 文件（和原来一样）
 clang++ $COMMON -c -o $OUT/main.o     $SRC/main.cpp
 clang++ $COMMON -c -o $OUT/util.o     $SRC/util.cpp
 clang++ $COMMON -c -o $OUT/hooks.o    $SRC/hooks.cpp
