@@ -1,8 +1,8 @@
-# adofai-mobilelevelloder — 冰与火之舞 移动版铺面加载器
+# adofai-mobilelevelloader — 冰与火之舞 移动版谱面加载器
 
-向《冰与火之舞》(A Dance of Fire and Ice) 安卓移动版（`com.fizzd.connectedworlds`，
+对《冰与火之舞》(A Dance of Fire and Ice) Android移动版（`com.fizzd.connectedworlds`，
 v3.3.1，Unity 6000.3.10f1 + il2cpp）注入一个 ImGui 文件选择器，
-用于加载自定义铺面（`.adofai`）——官方移动版未提供该入口，但游戏的
+用于加载自定义谱面（`.adofai`）——虽然官方移动版未提供该入口，但游戏的
 自定义关卡游玩场景 `scnGame` 及其完整加载管线（PC 遗留代码）都随包保留，
 本工具把这条链路完整接了起来。
 
@@ -10,8 +10,8 @@ v3.3.1，Unity 6000.3.10f1 + il2cpp）注入一个 ImGui 文件选择器，
 
 ```
 adofai-mobilelevelloder/
-├── gameassest/                 游戏包全部资源文件，现只保留重要文件
-├── gamelibs/                   游戏全部 lib（libil2cpp.so 等，arm64）
+├── gameassest/                 游戏包全部资源文件，只保留重要文件
+├── gamelibs/                   游戏全部 arm64的lib（libil2cpp.so 等）
 ├── imgui-master/               Dear ImGui 源码
 ├── levelexample/               自定义关卡示例（lightItUp.adofai + 歌曲/背景）
 ├── install方法以及示例/        安装说明（dex 植入 loadLibrary 方式）
