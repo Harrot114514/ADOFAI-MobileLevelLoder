@@ -1,0 +1,62 @@
+===============================================================
+ 冰与火之舞 移动版铺面加载器 (adofai-mobilelevelloder) 安装方法
+ 适用游戏: com.fizzd.connectedworlds (v3.3.1, arm64, Unity 6000.3.10f1 il2cpp)
+ 工具产物: ../loader/out/libadofailoader.so  (正式版 v1.0)
+===============================================================
+
+【原理】
+向游戏 dex 中植入 System.loadLibrary("adofailoader")，把
+libadofailoader.so 放进 APK 的 lib/arm64-v8a/，随游戏启动注入。
+JNI_OnLoad 会自动等待 libil2cpp.so 就绪，hook eglSwapBuffers 绘制
+ImGui 界面，hook UnityEngine.Input 拦截/捕获触摸，hook 关卡加载
+管线注入自定义关卡。
+
+【步骤】
+1. 反编译 APK（apktool / MT管理器 等）
+   apktool d game.apk -o game_src
+
+2. 把 libadofailoader.so 复制到游戏 APK 的 lib 目录（与 libil2cpp.so 同级）：
+   game_src/lib/arm64-v8a/libadofailoader.so
+
+3. 在 dex(smali) 中植入加载代码。找到游戏启动必经的类
+   （建议 com.unity3d.player.UnityPlayerActivity 的 onCreate 开头，
+   或 Application 类的 attachBaseContext），插入：
+
+   const-string v0, "adofailoader"
+   invoke-static {v0}, Ljava/lang/System;->loadLibrary(Ljava/lang/String;)V
+
+   注意寄存器冲突：插入位置要保证 v0 不被后续代码依赖；
+   稳妥做法是在 onCreate 的第一条指令前插入（prologue 之后）。
+
+4. 回编译并签名：
+   apktool b game_src -o game_patched.apk
+   然后用 apksigner 签名（debug 签名即可）并安装。
+
+5. 打开游戏，左上角出现「加载关卡」悬浮按钮即注入成功。
+
+【使用】
+- 点按悬浮按钮 → 打开加载器（游戏中会自动暂停）；
+  按住悬浮按钮拖动可移动其位置；
+  拖到屏幕左/右边缘附近松手 → 自动像悬浮球一样贴边隐藏（露出 1/4），
+  点露出的部分即可再拖出来。
+- 默认目录为游戏数据目录
+  /storage/emulated/0/Android/data/com.fizzd.connectedworlds/
+  把 .adofai 及其同目录歌曲/图片放这里（子文件夹亦可）。
+- 文件列表支持触摸滑动、滚动条、▲▼按钮；点选 .adofai 后按
+  「▶ 加载所选关卡」→ 自动转场进入关卡（铺面、音乐、背景齐全）。
+- 「▣ 设置」页：
+  · 语言（中文/English）、主题（暗色/亮色）
+  · 游戏选项：不败模式（No Fail）开关、难度选择（宽/普通/严）
+  · 文件选择器：仅显示关卡文件
+  全部自动保存到 files/adofai_loader.ini。
+- 工具日志：logcat（tag ADoFaiLoader）+ 文件
+  files/log/adofailoader.log（[I]/[W]/[E] 分级）。
+
+【卸载】
+删除注入的 loadLibrary 两行代码重打包，或直接卸载游戏。
+
+【常见问题】
+- 启动即崩：确认 lib 目录下有且仅有一个版本、abi 与游戏一致（arm64）。
+- 无悬浮按钮：logcat 过滤 ADoFaiLoader 查看注入日志。
+- 关卡加载失败：确认 .adofai 为合法 JSON（可含尾随逗号），
+  且歌曲/背景图与 .adofai 位于同一目录。
