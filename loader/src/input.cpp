@@ -7,6 +7,11 @@
 #include <atomic>
 #include <string>
 
+
+extern "C" void call_get_touch_orig(void* fn, void* retbuf, int index);
+extern "C" void hk_GetTouch_asm(void);
+
+
 // RVAs (from dump)
 static const uint64_t RVA_Input_get_touchCount    = 0x46206DC;
 static const uint64_t RVA_Input_GetTouch          = 0x461FE20;
