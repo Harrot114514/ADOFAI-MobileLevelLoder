@@ -3,6 +3,7 @@
 # Host: aarch64 Linux with apt clang + NDK r27d sysroot (the NDK prebuilt
 # toolchain binaries are x86_64, so we drive the host clang with the NDK
 # sysroot instead — clang is a cross-compiler by nature).
+
 set -e
 
 NDK=/workspace/ndk/android-ndk-r27d
@@ -26,6 +27,8 @@ COMMON="-target $TARGET -std=c++17 -O2 -fPIC -fvisibility=hidden -fno-rtti \
  -fno-strict-aliasing -ffunction-sections -fdata-sections \
  -DANDROID -DIMGUI_IMPL_OPENGL_ES3 \
  -I$SRC -I$SRC/font -I$IMGUI -I$IMGUI/backends \
+ -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include \
+ -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android \
  --sysroot=$SYSROOT"
 
 clang++ $COMMON -c -o $OUT/main.o $SRC/main.cpp
