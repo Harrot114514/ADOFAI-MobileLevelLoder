@@ -8,6 +8,28 @@
 #include <vector>
 #include <algorithm>
 
+extern "C" {
+    void* hk_concat2_c(void* a, void* b);
+    void* hk_concat3_c(void* a, void* b, void* c);
+    void* hk_concat4_c(void* a, void* b, void* c, void* d);
+    void* hk_split_c(void* str, int32_t sep, int32_t options);
+    void* hk_LoadTexture_c(void* filePath, void* status, int32_t maxSide);
+    void* hk_LoadNewSprite_c(void* filePath, void* status, float ppu, int32_t type);
+    bool hk_RDFile_Exists_c(void* path);
+    void* hk_RDFile_ReadAllBytes_c(void* path, void* status);
+    int32_t hk_DetermineDifficultyUIMode_c(float bpm);
+    bool hk_LoadAndPlayLevel_c(void* self, void* path);
+    bool hk_LoadLevel_c(void* self, void* path, void* status);
+    bool hk_LevelData_LoadLevel_c(void* self, void* path, void* status);
+    bool hk_get_isInternalLevel_c();
+    bool hk_get_isDLCLevel_c();
+    bool hk_get_isBossLevel_c();
+    bool hk_get_isCLSBossLevel_c();
+    bool hk_ReloadSongCo_MoveNext_c(void* self);
+    void hk_ReloadSong_c(void* self, bool force);
+    void hk_ReloadCustomSounds_c(void* self, bool force);
+}
+
 static uint64_t monotonic_ms() {
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
