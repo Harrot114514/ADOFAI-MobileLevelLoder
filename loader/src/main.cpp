@@ -8,6 +8,8 @@
 #include <unistd.h>
 #include <dlfcn.h>
 #include <string.h>
+#include <stdlib.h>
+
 
 static void* bootstrap_thread(void*) {
     for (int i = 0; i < 2000; i++) {

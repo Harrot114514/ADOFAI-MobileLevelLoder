@@ -63,40 +63,45 @@ struct Il2CppApi {
     void (*exception_clear)(void);
 };
 
+
+
 // GC Handle 管理类
-struct ScopedGCHandle {
-    uint32_t handle = 0;
-    ScopedGCHandle() = default;
-    ScopedGCHandle(Il2CppObject* obj, bool pinned = false) {
-        if (obj && il2cpp.gchandle_new) {
-            handle = il2cpp.gchandle_new(obj, pinned);
-        }
-    }
-    ~ScopedGCHandle() { 
-        if (handle && il2cpp.gchandle_free) {
-            il2cpp.gchandle_free(handle);
-            handle = 0;
-        }
-    }
-    ScopedGCHandle(const ScopedGCHandle&) = delete;
-    ScopedGCHandle& operator=(const ScopedGCHandle&) = delete;
-    ScopedGCHandle(ScopedGCHandle&& other) noexcept : handle(other.handle) {
-        other.handle = 0;
-    }
-    ScopedGCHandle& operator=(ScopedGCHandle&& other) noexcept {
-        if (this != &other) {
-            if (handle) il2cpp.gchandle_free(handle);
-            handle = other.handle;
-            other.handle = 0;
-        }
-        return *this;
-    }
-    void* get() const {
-        if (!handle || !il2cpp.gchandle_get_target) return nullptr;
-        return il2cpp.gchandle_get_target(handle);
-    }
-    bool valid() const { return handle != 0 && get() != nullptr; }
-};
+//struct ScopedGCHandle {
+    //uint32_t handle = 0;
+    //ScopedGCHandle() = default;
+    //ScopedGCHandle(Il2CppObject* obj, bool pinned = false) {
+        //if (obj && il2cpp.gchandle_new) {
+            //handle = il2cpp.gchandle_new(obj, pinned);
+        //}
+    //}
+    //~ScopedGCHandle() { 
+        //if (handle && il2cpp.gchandle_free) {
+            //il2cpp.gchandle_free(handle);
+            //handle = 0;
+        //}
+    //}
+    //ScopedGCHandle(const ScopedGCHandle&) = delete;
+    //ScopedGCHandle& operator=(const ScopedGCHandle&) = delete;
+    //ScopedGCHandle(ScopedGCHandle&& other) noexcept : handle(other.handle) {
+        //other.handle = 0;
+    //}
+    //ScopedGCHandle& operator=(ScopedGCHandle&& other) noexcept {
+        //if (this != &other) {
+            //if (handle) il2cpp.gchandle_free(handle);
+            //handle = other.handle;
+            //other.handle = 0;
+        //}
+        //return *this;
+    //}
+    //void* get() const {
+        //if (!handle || !il2cpp.gchandle_get_target) return nullptr;
+        //return il2cpp.gchandle_get_target(handle);
+    //}
+    //bool valid() const { return handle != 0 && get() != nullptr; }
+//};
+
+
+
 
 // Resolve the il2cpp API (returns false if libil2cpp.so is not loaded yet).
 bool il2cpp_resolve();
