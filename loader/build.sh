@@ -4,6 +4,7 @@
 # toolchain binaries are x86_64, so we drive the host clang with the NDK
 # sysroot instead — clang is a cross-compiler by nature).
 
+#!/bin/bash
 set -e
 
 NDK=/workspace/ndk/android-ndk-r27d
@@ -30,6 +31,21 @@ COMMON="-target $TARGET -std=c++17 -O2 -fPIC -fvisibility=hidden -fno-rtti \
  -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include \
  -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android \
  --sysroot=$SYSROOT"
+
+echo "=== Build Debug Info ==="
+echo "NDK: $NDK"
+echo "SYSROOT: $SYSROOT"
+echo "Target: $TARGET"
+echo "COMMON: $COMMON"
+echo ""
+echo "Checking sysroot include directories:"
+ls -la $SYSROOT/usr/include/ 2>/dev/null || echo "Directory not found: $SYSROOT/usr/include/"
+echo ""
+ls -la $SYSROOT/usr/include/aarch64-linux-android/ 2>/dev/null || echo "Directory not found: $SYSROOT/usr/include/aarch64-linux-android/"
+echo ""
+echo "Checking NDK JNI path:"
+ls -la $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android/ 2>/dev/null || echo "Directory not found"
+echo "=== End Debug Info ==="
 
 clang++ $COMMON -c -o $OUT/main.o $SRC/main.cpp
 clang++ $COMMON -c -o $OUT/util.o $SRC/util.cpp
