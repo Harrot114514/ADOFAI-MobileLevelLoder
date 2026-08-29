@@ -5,12 +5,14 @@
 # sysroot instead — clang is a cross-compiler by nature).
 
 #!/bin/bash
+#!/bin/bash
 set -e
 
 NDK=/workspace/ndk/android-ndk-r27d
-SYSROOT=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot
-SYSLIB=$SYSROOT/usr/lib/aarch64-linux-android/25
-CLANG_LIB=$NDK/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/lib
+CLANG_PREBUILT=$NDK/toolchains/llvm/prebuilt/linux-x86_64
+SYSROOT=$CLANG_PREBUILT/sysroot
+SYSLIB=$SYSROOT/usr/lib/aarch64-linux-android/21
+CLANG_LIB=$CLANG_PREBUILT/lib/clang/18/lib
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SRC=$ROOT/src
@@ -18,7 +20,7 @@ IMGUI=$ROOT/../imgui-master
 OUT=$ROOT/out
 mkdir -p $OUT
 
-TARGET=aarch64-linux-android25
+TARGET=aarch64-linux-android21
 
 mkdir -p $ROOT/link
 ln -sf $CLANG_LIB/linux/libclang_rt.builtins-aarch64-android.a $ROOT/link/libgcc.a
@@ -28,23 +30,17 @@ COMMON="-target $TARGET -std=c++17 -O2 -fPIC -fvisibility=hidden -fno-rtti \
  -fno-strict-aliasing -ffunction-sections -fdata-sections \
  -DANDROID -DIMGUI_IMPL_OPENGL_ES3 \
  -I$SRC -I$SRC/font -I$IMGUI -I$IMGUI/backends \
+ -I$CLANG_PREBUILT/sysroot/usr/include \
+ -I$CLANG_PREBUILT/sysroot/usr/include/aarch64-linux-android \
  -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include \
- -I$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android \
- --sysroot=$SYSROOT"
+ -B$CLANG_PREBUILT/bin \
+ --sysroot=$CLANG_PREBUILT/sysroot"
 
 echo "=== Build Debug Info ==="
 echo "NDK: $NDK"
-echo "SYSROOT: $SYSROOT"
-echo "Target: $TARGET"
-echo "COMMON: $COMMON"
-echo ""
-echo "Checking sysroot include directories:"
-ls -la $SYSROOT/usr/include/ 2>/dev/null || echo "Directory not found: $SYSROOT/usr/include/"
-echo ""
-ls -la $SYSROOT/usr/include/aarch64-linux-android/ 2>/dev/null || echo "Directory not found: $SYSROOT/usr/include/aarch64-linux-android/"
-echo ""
-echo "Checking NDK JNI path:"
-ls -la $NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot/usr/include/aarch64-linux-android/ 2>/dev/null || echo "Directory not found"
+echo "CLANG_PREBUILT: $CLANG_PREBUILT"
+echo "Checking sysroot:"
+ls -la $CLANG_PREBUILT/sysroot/usr/include/ 2>/dev/null | head -5 || echo "Not found"
 echo "=== End Debug Info ==="
 
 clang++ $COMMON -c -o $OUT/main.o $SRC/main.cpp
