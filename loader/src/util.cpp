@@ -7,14 +7,19 @@
 #include <string.h>
 #include <time.h>
 #include <sys/stat.h>
-#include <errno.h>
 #include <mutex>
 
 // ------------------------------------------------------------------ logging
+// Every line goes to logcat AND is appended to the on-disk log:
+//   /storage/emulated/0/Android/data/com.fizzd.connectedworlds/files/log/adofailoader.log
+// Levels: [I] info / [W] warn / [E] error.
 static std::mutex g_log_mutex;
 static FILE* g_log_file = nullptr;
 static bool g_log_tried = false;
 
+// The game data dir base, resolved at runtime from /proc/self/cmdline
+// (the process name == the package name), so renaming the package doesn't
+// break the tool.
 static char g_data_dir[512] = "";
 
 static void resolve_data_dir() {
@@ -44,21 +49,11 @@ static void log_file_open() {
     snprintf(dir, sizeof(dir), "%s/log", g_data_dir);
     char base[600];
     snprintf(base, sizeof(base), "%s", g_data_dir);
-    
-    // 创建目录，并检查错误
-    if (mkdir(base, 0777) != 0 && errno != EEXIST) {
-        __android_log_print(ANDROID_LOG_WARN, TAG, "mkdir %s failed: %s", base, strerror(errno));
-    }
-    if (mkdir(dir, 0777) != 0 && errno != EEXIST) {
-        __android_log_print(ANDROID_LOG_WARN, TAG, "mkdir %s failed: %s", dir, strerror(errno));
-    }
-    
+    mkdir(base, 0777);
+    mkdir(dir, 0777);
     char path[800];
     snprintf(path, sizeof(path), "%s/adofailoader.log", dir);
     g_log_file = fopen(path, "a");
-    if (!g_log_file) {
-        __android_log_print(ANDROID_LOG_WARN, TAG, "cannot open log file %s: %s", path, strerror(errno));
-    }
 }
 
 void log_line(int level, const char* fmt, ...) {
@@ -107,6 +102,8 @@ void log_clear() {
         std::lock_guard<std::mutex> lk(g_log_mutex);
         if (g_log_file) { fclose(g_log_file); g_log_file = nullptr; }
     }
+    // NOTE: do NOT call LOGI while holding g_log_mutex (log_line locks it
+    // again -> deadlock). Build the path outside the lock.
     char path[700];
     snprintf(path, sizeof(path), "%s/log/adofailoader.log", g_data_dir);
     remove(path);
@@ -120,6 +117,7 @@ static int dl_callback(struct dl_phdr_info* info, size_t size, void* data) {
     (void)size; (void)data;
     const char* name = info->dlpi_name;
     if (!name || !name[0]) return 0;
+    // basename
     const char* base = strrchr(name, '/');
     base = base ? base + 1 : name;
     if (strcmp(base, g_find_name) == 0) {
@@ -144,18 +142,10 @@ uint8_t* read_file(const char* path, size_t* out_size) {
     fseek(f, 0, SEEK_SET);
     if (sz <= 0) { fclose(f); return nullptr; }
     uint8_t* buf = (uint8_t*)malloc((size_t)sz);
-    if (!buf) {
-        LOGE("read_file: malloc %ld bytes failed", sz);
-        fclose(f);
-        return nullptr;
-    }
+    if (!buf) { fclose(f); return nullptr; }
     size_t rd = fread(buf, 1, (size_t)sz, f);
     fclose(f);
-    if (rd != (size_t)sz) {
-        LOGE("read_file: read %zu/%ld bytes", rd, sz);
-        free(buf);
-        return nullptr;
-    }
+    if (rd != (size_t)sz) { free(buf); return nullptr; }
     if (out_size) *out_size = (size_t)sz;
     return buf;
 }

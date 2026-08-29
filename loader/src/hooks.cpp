@@ -1,11 +1,18 @@
 #include "hooks.hpp"
 #include "util.hpp"
+#include "game.hpp"
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
+
+extern Il2CppString* g_empty_string;
+extern bool g_strings_ready;
+extern pfn_concat2 g_orig_concat2;
+extern pfn_concat3 g_orig_concat3;
+extern pfn_concat4 g_orig_concat4;
+extern pfn_split g_orig_split;
 
 // ---------------------------------------------------------------- helpers
 
@@ -20,11 +27,12 @@ static inline int64_t sext(int64_t v, int bits) {
 // Encode B / BL
 static uint32_t enc_b(uint32_t base, int64_t target, uint64_t pc) {
     int64_t off = (target - (int64_t)pc) >> 2;
-    if (off < -(1 << 25) || off >= (1 << 25)) return 0;
+    if (off < -(1 << 25) || off >= (1 << 25)) return 0; // out of range
     return base | ((uint32_t)off & 0x03FFFFFF);
 }
 
 // Relocate one instruction from `src_pc` to `dst` (executed at `dst_pc`).
+// Returns true on success.
 static bool relocate_one(uint32_t insn, uint64_t src_pc, uint8_t* dst, uint64_t dst_pc) {
     // B / BL
     if ((insn & 0x7C000000) == 0x14000000) {
@@ -62,21 +70,16 @@ static bool relocate_one(uint32_t insn, uint64_t src_pc, uint8_t* dst, uint64_t 
     // ADR / ADRP
     if ((insn & 0x1F000000) == 0x10000000) {
         int64_t imm = sext(((insn >> 29) & 0x3) | (((insn >> 5) & 0x7FFFF) << 2), 21);
+        int64_t target;
         if (insn & 0x80000000) { // ADRP
-            int64_t target = ((int64_t)src_pc & ~0xFFFLL) + (imm << 12);
+            target = ((int64_t)src_pc & ~0xFFFLL) + (imm << 12);
             int64_t delta = target - ((int64_t)dst_pc & ~0xFFFLL);
-            // 如果 delta 超出 ±4GB，改用 MOVZ/MOVK 构造地址（容错）
-            if (delta < -(1LL << 32) || delta >= (1LL << 32)) {
-                // 用 MOVZ/MOVK 构造 64 位地址 + BR 跳转（简单回退）
-                // 这里直接返回 false，让上层用短跳转兜底
-                return false;
-            }
             uint32_t immlo = ((uint32_t)delta >> 12) & 0x3;
             uint32_t immhi = ((uint32_t)delta >> 14) & 0x7FFFF;
             write32(dst, (insn & 0x9F00001F) | (immlo << 29) | (immhi << 5));
             return true;
         } else { // ADR
-            int64_t target = (int64_t)src_pc + imm;
+            target = (int64_t)src_pc + imm;
             int64_t delta = target - (int64_t)dst_pc;
             if (delta < -(1 << 20) || delta >= (1 << 20)) return false;
             uint32_t immlo = ((uint32_t)delta & 0x3);
@@ -146,12 +149,15 @@ static void* alloc_near_page(uint64_t target) {
 
     void* p = mmap((void*)best, 0x2000, PROT_READ | PROT_WRITE | PROT_EXEC,
                    MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
-    if (p == MAP_FAILED) {
-        LOGE("alloc_near_page: mmap at %lx failed: %s", best, strerror(errno));
-        return nullptr;
-    }
+    if (p == MAP_FAILED) return nullptr;
     return p;
 }
+
+struct HookCtx {
+    void*  target;
+    void*  near_page;      // 0x2000 RWX
+    void*  trampoline;     // == near_page + 0x100
+};
 
 // Classify PC-relative instructions (cannot be moved without fixup).
 static bool is_pcrel(uint32_t insn) {
@@ -167,10 +173,12 @@ static bool is_pcrel(uint32_t insn) {
     return false;
 }
 
+// Rewrite a single 32-bit instruction at an arbitrary address (used to
+// patch unconditional branches inside game functions).
 void patch_write_u32(void* addr, uint32_t insn) {
     uint64_t page = (uint64_t)addr & ~0xFFFULL;
     if (mprotect((void*)page, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
-        LOGE("patch: mprotect failed for %p: %s", addr, strerror(errno));
+        LOGE("patch: mprotect failed for %p", addr);
         return;
     }
     write32(addr, insn);
@@ -179,8 +187,7 @@ void patch_write_u32(void* addr, uint32_t insn) {
     LOGI("patch: wrote %08x @ %p", insn, addr);
 }
 
-void* hook_install(void* target, void* handler) {
-    if (!target || !handler) return nullptr;
+void* hook_install(void* target, void* handler) {    if (!target || !handler) return nullptr;
     uint64_t t = (uint64_t)target;
 
     void* np = alloc_near_page(t);
@@ -198,12 +205,13 @@ void* hook_install(void* target, void* handler) {
     bool short_patch = !is_pcrel(insn0);
 
     if (mprotect((void*)page, 0x1000, PROT_READ | PROT_WRITE | PROT_EXEC) != 0) {
-        LOGE("hook: mprotect failed %p: %s", (void*)page, strerror(errno));
+        LOGE("hook: mprotect failed %p", (void*)page);
         munmap(np, 0x2000);
         return nullptr;
     }
 
     if (short_patch) {
+        // Patch only 4 bytes: B veneer. Trampoline = insn0 + B target+4.
         int64_t off = ((int64_t)np - (int64_t)t) >> 2;
         if (off < -(1 << 25) || off >= (1 << 25)) {
             LOGE("hook: veneer out of B range for %p", target);
@@ -213,12 +221,7 @@ void* hook_install(void* target, void* handler) {
         }
         write32(tramp, insn0);
         uint32_t jb = enc_b(0x14000000, t + 4, (uint64_t)(tramp + 4));
-        if (!jb) {
-            LOGE("hook: cannot encode jump back for %p", target);
-            mprotect((void*)page, 0x1000, PROT_READ | PROT_EXEC);
-            munmap(np, 0x2000);
-            return nullptr;
-        }
+        if (!jb) { mprotect((void*)page, 0x1000, PROT_READ | PROT_EXEC); munmap(np, 0x2000); return nullptr; }
         write32(tramp + 4, jb);
         __builtin___clear_cache((char*)tramp, (char*)tramp + 8);
 
@@ -237,12 +240,7 @@ void* hook_install(void* target, void* handler) {
             }
         }
         uint32_t jmp_back = enc_b(0x14000000, t + 16, (uint64_t)(tramp + 16));
-        if (!jmp_back) {
-            LOGE("hook: cannot encode jump back (long) for %p", target);
-            mprotect((void*)page, 0x1000, PROT_READ | PROT_EXEC);
-            munmap(np, 0x2000);
-            return nullptr;
-        }
+        if (!jmp_back) { mprotect((void*)page, 0x1000, PROT_READ | PROT_EXEC); munmap(np, 0x2000); return nullptr; }
         write32(tramp + 16, jmp_back);
         __builtin___clear_cache((char*)tramp, (char*)tramp + 20);
 
@@ -256,4 +254,48 @@ void* hook_install(void* target, void* handler) {
     LOGI("hook: installed %p -> %p (tramp %p, %s)", target, handler, tramp,
          short_patch ? "short" : "full");
     return tramp;
+}
+
+
+extern "C" void* hk_concat2_c(void* a, void* b) {
+    if (game_custom_pending()) {
+        if (!g_strings_ready) {
+            game_ensure_strings_initialized();
+        }
+        a = resolve_string_arg(a);
+        if (!a || string_looks_bad(a)) a = g_empty_string;
+        b = resolve_string_arg(b);
+        if (!b || string_looks_bad(b)) b = g_empty_string;
+    }
+    return g_orig_concat2(a, b);
+}
+
+extern "C" void* hk_concat3_c(void* a, void* b, void* c) {
+    if (game_custom_pending()) {
+        if (!g_strings_ready) game_ensure_strings_initialized();
+        a = resolve_string_arg(a); if (!a || string_looks_bad(a)) a = g_empty_string;
+        b = resolve_string_arg(b); if (!b || string_looks_bad(b)) b = g_empty_string;
+        c = resolve_string_arg(c); if (!c || string_looks_bad(c)) c = g_empty_string;
+    }
+    return g_orig_concat3(a, b, c);
+}
+
+extern "C" void* hk_concat4_c(void* s0, void* s1, void* s2, void* s3) {
+    if (game_custom_pending()) {
+        if (!g_strings_ready) game_ensure_strings_initialized();
+        s0 = resolve_string_arg(s0); if (!s0 || string_looks_bad(s0)) s0 = g_empty_string;
+        s1 = resolve_string_arg(s1); if (!s1 || string_looks_bad(s1)) s1 = g_empty_string;
+        s2 = resolve_string_arg(s2); if (!s2 || string_looks_bad(s2)) s2 = g_empty_string;
+        s3 = resolve_string_arg(s3); if (!s3 || string_looks_bad(s3)) s3 = g_empty_string;
+    }
+    return g_orig_concat4(s0, s1, s2, s3);
+}
+
+extern "C" void* hk_split_c(void* str, int32_t sep, int32_t options) {
+    if (game_custom_pending()) {
+        if (!g_strings_ready) game_ensure_strings_initialized();
+        str = resolve_string_arg(str);
+        if (!str || string_looks_bad(str)) str = g_empty_string;
+    }
+    return g_orig_split(str, sep, options);
 }

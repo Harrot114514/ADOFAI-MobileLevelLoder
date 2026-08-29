@@ -3,12 +3,15 @@
 #include <dlfcn.h>
 #include <string.h>
 #include <stdio.h>
-#include <sys/mman.h>
 
 Il2CppApi il2cpp;
 
-extern uint64_t g_il2cpp_base;
+extern uint64_t g_il2cpp_base; // defined in game.cpp
 
+// Unity loads libil2cpp.so via System.loadLibrary => RTLD_LOCAL, so its
+// exports are NOT in the global scope and dlsym(RTLD_DEFAULT) fails.
+// Look up through the library's own handle instead (RTLD_NOLOAD reuses the
+// already-loaded instance).
 static void* g_il2cpp_handle = nullptr;
 
 void* il2cpp_lib_handle() { return g_il2cpp_handle; }
@@ -19,6 +22,9 @@ static void* open_il2cpp_handle() {
     return h;
 }
 
+// Hard-coded export table (RVAs into libil2cpp.so, from the game's
+// libil2cpp.so symbol table) as a last-resort fallback if the linker refuses
+// dlsym lookups on this device.
 struct ApiEntry { const char* name; uint64_t rva; };
 static const ApiEntry kApiTable[] = {
     { "il2cpp_domain_get",                0x1F55C88 },
@@ -41,35 +47,20 @@ static const ApiEntry kApiTable[] = {
     { "il2cpp_class_get_name",            0x1F557F0 },
 };
 
-// 简单的函数头校验：检查是否以 stp x29, x30, [sp, #-16]! 开头
-static bool looks_like_function_start(void* addr) {
-    if (!addr) return false;
-    uint32_t insn = *(uint32_t*)addr;
-    // 常见函数开头: stp x29, x30, [sp, #-16]!  = 0xA9BF7BFD
-    // 或者 sub sp, sp, #0x20 之类的
-    return (insn == 0xA9BF7BFD) || ((insn & 0xFFC00000) == 0x91000000);
-}
-
 static void* resolve_sym(const char* sym) {
     if (g_il2cpp_handle) {
         void* p = dlsym(g_il2cpp_handle, sym);
         if (p) return p;
     }
+    // fallback 1: global scope (in case the game loaded it RTLD_GLOBAL)
     void* p = dlsym(RTLD_DEFAULT, sym);
     if (p) return p;
-    
+    // fallback 2: hard-coded export RVA + module base
     if (g_il2cpp_base) {
         for (const ApiEntry& e : kApiTable) {
             if (strcmp(e.name, sym) == 0) {
-                void* addr = (void*)(g_il2cpp_base + e.rva);
-                // 校验：如果地址看起来不像函数开头，打印警告但依旧返回
-                if (!looks_like_function_start(addr)) {
-                    LOGW("il2cpp: %s RVA %llx might be wrong (function header mismatch)",
-                         sym, (unsigned long long)e.rva);
-                } else {
-                    LOGI("il2cpp: %s resolved via RVA table (validated)", sym);
-                }
-                return addr;
+                LOGI("il2cpp: %s resolved via RVA table", sym);
+                return (void*)(g_il2cpp_base + e.rva);
             }
         }
     }
@@ -111,11 +102,16 @@ bool il2cpp_resolve() {
     RESOLVE(object_new, "il2cpp_object_new");
     RESOLVE(free, "il2cpp_free");
     RESOLVE(class_get_name, "il2cpp_class_get_name");
+    RESOLVE(gchandle_new, "il2cpp_gchandle_new");
+    RESOLVE(gchandle_free, "il2cpp_gchandle_free");
+    RESOLVE(gchandle_get_target, "il2cpp_gchandle_get_target");
+    RESOLVE(exception_get_message, "il2cpp_exception_get_message");
+    RESOLVE(exception_clear, "il2cpp_exception_clear");
     if (ok) {
         LOGI("il2cpp: API resolved via handle %p", g_il2cpp_handle);
     } else {
         LOGI("il2cpp: some symbols missing, retrying later");
-        done = false;
+        done = false; // allow retry
     }
     return ok;
 }
@@ -136,6 +132,7 @@ Il2CppClass* il2cpp_find_class(const char* assembly_name, const char* ns, const 
             if (k) return k;
         }
     }
+    // fallback: search all images (some Unity versions name assemblies differently)
     for (size_t i = 0; i < count; i++) {
         const Il2CppImage* img = il2cpp.assembly_get_image(asms[i]);
         if (!img) continue;
