@@ -3,13 +3,18 @@
 #include "game.hpp"
 #include "input.hpp"
 #include "render.hpp"
-#include <jni/jni.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
 #include <string.h>
 #include <stdlib.h>
 
+#define JNIEXPORT __attribute__((visibility("default")))
+#define JNICALL
+#define JNI_VERSION_1_6 0x00010006
+
+typedef struct _JavaVM JavaVM;
+typedef struct _JNIEnv JNIEnv;
 
 static void* bootstrap_thread(void*) {
     for (int i = 0; i < 2000; i++) {
