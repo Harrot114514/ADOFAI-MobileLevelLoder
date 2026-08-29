@@ -3,7 +3,7 @@
 #include "game.hpp"
 #include "input.hpp"
 #include "render.hpp"
-#include <jni.h>
+#include <jni/jni.h>
 #include <pthread.h>
 #include <unistd.h>
 #include <dlfcn.h>
