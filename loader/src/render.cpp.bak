@@ -77,7 +77,6 @@ extern "C" EGLBoolean hk_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
 }
 
 bool render_install_egl_hook() {
-    LOGI("render: install egl hook begin");
     if (orig_eglSwapBuffers) return true;
     void* egl = dlopen("libEGL.so", RTLD_NOW | RTLD_LOCAL);
     if (!egl) egl = dlopen("libEGL.so", RTLD_LAZY);
@@ -85,11 +84,9 @@ bool render_install_egl_hook() {
     void* fn = dlsym(RTLD_DEFAULT, "eglSwapBuffers");
     if (!fn) fn = dlsym(egl, "eglSwapBuffers");
     if (!fn) { LOGE("render: eglSwapBuffers not found"); return false; }
-    LOGI("render: eglSwapBuffers addr %p", fn);
 
     orig_eglSwapBuffers = (pfn_eglSwapBuffers)hook_install(fn, (void*)&hk_eglSwapBuffers);
-    LOGI("render: hook_install returned %p", (void*)orig_eglSwapBuffers);
-    if (!orig_eglSwapBuffers) { LOGE("render: eglSwapBuffers hook FAILED (skipped)"); return false; }
+    if (!orig_eglSwapBuffers) { LOGE("render: eglSwapBuffers hook failed"); return false; }
     LOGI("render: eglSwapBuffers hooked @%p (orig %p)", fn, (void*)orig_eglSwapBuffers);
     return true;
 }

@@ -139,11 +139,14 @@ static void* alloc_near_page(uint64_t target) {
     }
     if (!best) return nullptr;
 
-    void* p = mmap((void*)best, 0x2000, PROT_READ|PROT_WRITE|PROT_EXEC,
-               MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
+    void* p = mmap((void*)best, 0x2000, PROT_READ | PROT_WRITE | PROT_EXEC,
+               MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    LOGI("alloc: NOREPLACE mmap(%p) -> %p", (void*)best, p);
     if (p == MAP_FAILED) {
-    p = mmap((void*)best, 0x2000, PROT_READ|PROT_WRITE|PROT_EXEC,
-             MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
+        LOGI("alloc: NOREPLACE failed, fallback MAP_FIXED");
+        p = mmap((void*)best, 0x2000, PROT_READ | PROT_WRITE | PROT_EXEC,
+             MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    LOGI("alloc: MAP_FIXED mmap(%p) -> %p", (void*)best, p);
     }
     if (p == MAP_FAILED) return nullptr;
         return p;

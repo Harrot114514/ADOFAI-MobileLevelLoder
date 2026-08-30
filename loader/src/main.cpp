@@ -35,11 +35,12 @@ static void* bootstrap_thread(void*) {
     // 3) install input hooks (touch funnel) and the EGL render hook.
     //    Game bindings (GCS/scrController) init lazily on the main thread.
     input_hooks_install();
+    LOGI("bootstrap: input hooks done, installing render hook...");
     render_install_egl_hook();
-    // Load-level pipeline hooks force the custom-level branch and guard the
-    // game's internal-level path split from crashing on our file paths.
+    LOGI("bootstrap: render hook done, installing game hooks...");
     game_install_load_level_hooks();
-
+    LOGI("bootstrap: game hooks done");
+    
     LOGI("bootstrap: done (game bindings init lazily on first input poll)");
     return nullptr;
 }
