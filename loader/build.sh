@@ -5,10 +5,12 @@
 # sysroot instead — clang is a cross-compiler by nature).
 set -e
 
-NDK=/workspace/ndk/android-ndk-r27d
+NDK=${NDK:-/workspace/ndk/android-ndk-r27d}
 SYSROOT=$NDK/toolchains/llvm/prebuilt/linux-x86_64/sysroot
 SYSLIB=$SYSROOT/usr/lib/aarch64-linux-android/25
 CLANG_LIB=$NDK/toolchains/llvm/prebuilt/linux-x86_64/lib/clang/18/lib
+
+find $SYSROOT -name "jni.h" 2>/dev/null
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 SRC=$ROOT/src
