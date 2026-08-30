@@ -102,11 +102,6 @@ bool il2cpp_resolve() {
     RESOLVE(object_new, "il2cpp_object_new");
     RESOLVE(free, "il2cpp_free");
     RESOLVE(class_get_name, "il2cpp_class_get_name");
-    RESOLVE(gchandle_new, "il2cpp_gchandle_new");
-    RESOLVE(gchandle_free, "il2cpp_gchandle_free");
-    RESOLVE(gchandle_get_target, "il2cpp_gchandle_get_target");
-    RESOLVE(exception_get_message, "il2cpp_exception_get_message");
-    RESOLVE(exception_clear, "il2cpp_exception_clear");
     if (ok) {
         LOGI("il2cpp: API resolved via handle %p", g_il2cpp_handle);
     } else {

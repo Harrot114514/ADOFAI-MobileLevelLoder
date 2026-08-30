@@ -1,18 +1,10 @@
 #include "hooks.hpp"
 #include "util.hpp"
-#include "game.hpp"
 #include <sys/mman.h>
 #include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-extern Il2CppString* g_empty_string;
-extern bool g_strings_ready;
-extern pfn_concat2 g_orig_concat2;
-extern pfn_concat3 g_orig_concat3;
-extern pfn_concat4 g_orig_concat4;
-extern pfn_split g_orig_split;
 
 // ---------------------------------------------------------------- helpers
 
@@ -147,11 +139,16 @@ static void* alloc_near_page(uint64_t target) {
     }
     if (!best) return nullptr;
 
-    void* p = mmap((void*)best, 0x2000, PROT_READ | PROT_WRITE | PROT_EXEC,
-                   MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED_NOREPLACE, -1, 0);
+    void* p = mmap((void*)best, 0x2000, PROT_READ|PROT_WRITE|PROT_EXEC,
+               MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE, -1, 0);
+    if (p == MAP_FAILED) {
+    p = mmap((void*)best, 0x2000, PROT_READ|PROT_WRITE|PROT_EXEC,
+             MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED, -1, 0);
+    }
     if (p == MAP_FAILED) return nullptr;
-    return p;
-}
+        return p;
+    }
+
 
 struct HookCtx {
     void*  target;
@@ -254,48 +251,4 @@ void* hook_install(void* target, void* handler) {    if (!target || !handler) re
     LOGI("hook: installed %p -> %p (tramp %p, %s)", target, handler, tramp,
          short_patch ? "short" : "full");
     return tramp;
-}
-
-
-extern "C" void* hk_concat2_c(void* a, void* b) {
-    if (game_custom_pending()) {
-        if (!g_strings_ready) {
-            game_ensure_strings_initialized();
-        }
-        a = resolve_string_arg(a);
-        if (!a || string_looks_bad(a)) a = g_empty_string;
-        b = resolve_string_arg(b);
-        if (!b || string_looks_bad(b)) b = g_empty_string;
-    }
-    return g_orig_concat2(a, b);
-}
-
-extern "C" void* hk_concat3_c(void* a, void* b, void* c) {
-    if (game_custom_pending()) {
-        if (!g_strings_ready) game_ensure_strings_initialized();
-        a = resolve_string_arg(a); if (!a || string_looks_bad(a)) a = g_empty_string;
-        b = resolve_string_arg(b); if (!b || string_looks_bad(b)) b = g_empty_string;
-        c = resolve_string_arg(c); if (!c || string_looks_bad(c)) c = g_empty_string;
-    }
-    return g_orig_concat3(a, b, c);
-}
-
-extern "C" void* hk_concat4_c(void* s0, void* s1, void* s2, void* s3) {
-    if (game_custom_pending()) {
-        if (!g_strings_ready) game_ensure_strings_initialized();
-        s0 = resolve_string_arg(s0); if (!s0 || string_looks_bad(s0)) s0 = g_empty_string;
-        s1 = resolve_string_arg(s1); if (!s1 || string_looks_bad(s1)) s1 = g_empty_string;
-        s2 = resolve_string_arg(s2); if (!s2 || string_looks_bad(s2)) s2 = g_empty_string;
-        s3 = resolve_string_arg(s3); if (!s3 || string_looks_bad(s3)) s3 = g_empty_string;
-    }
-    return g_orig_concat4(s0, s1, s2, s3);
-}
-
-extern "C" void* hk_split_c(void* str, int32_t sep, int32_t options) {
-    if (game_custom_pending()) {
-        if (!g_strings_ready) game_ensure_strings_initialized();
-        str = resolve_string_arg(str);
-        if (!str || string_looks_bad(str)) str = g_empty_string;
-    }
-    return g_orig_split(str, sep, options);
 }
