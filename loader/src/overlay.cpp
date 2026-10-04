@@ -201,6 +201,65 @@ static bool font_file_supported(const char* path) {
     return t2 == 0x00010000;
 }
 
+#include <dirent.h>
+
+// Try to load a system CJK fallback: first the known paths, then scan the
+// common font directories for candidates (some OEMs put their CJK font at
+// non-standard paths, which left dynamic strings like file names as "?").
+static bool try_load_system_font(float px, const ImFontConfig& base) {
+    ImGuiIO& io = ImGui::GetIO();
+    // 1) known paths
+    for (const char* p : kSystemFonts) {
+        if (file_exists(p) && font_file_supported(p)) {
+            ImFontConfig cfg2 = base;
+            cfg2.MergeMode = true;
+            cfg2.FontDataOwnedByAtlas = false;
+            io.Fonts->AddFontFromFileTTF(p, px, &cfg2, kRanges);
+            LOGI("overlay: using system font %s", p);
+            return true;
+        }
+    }
+    // 2) scan font dirs for CJK-ish candidates
+    static const char* kDirs[] = {
+        "/system/fonts", "/system/fonts/vendor", "/product/fonts",
+        "/my_product/fonts", "/my_stock/fonts", "/system/fonts/zh",
+    };
+    static const char* kKws[] = {
+        "cjk", "CJK", "NotoSans", "MiSans", "OPPO", "Harmony", "SourceHan",
+        "DroidSansFallback", "Vivo", "HONOR", "OnePlus", "Meizu",
+    };
+    for (const char* dir : kDirs) {
+        DIR* d = opendir(dir);
+        if (!d) continue;
+        struct dirent* e;
+        while ((e = readdir(d)) != nullptr) {
+            const char* name = e->d_name;
+            size_t n = strlen(name);
+            if (n < 5) continue;
+            const char* ext = name + n - 4;
+            if (strcmp(ext, ".ttf") != 0 && strcmp(ext, ".ttc") != 0 &&
+                strcmp(ext, ".TTF") != 0 && strcmp(ext, ".TTC") != 0) continue;
+            bool match = false;
+            for (const char* kw : kKws)
+                if (strstr(name, kw)) { match = true; break; }
+            if (!match) continue;
+            char full[600];
+            snprintf(full, sizeof(full), "%s/%s", dir, name);
+            if (!font_file_supported(full)) continue;
+            ImFontConfig cfg2 = base;
+            cfg2.MergeMode = true;
+            cfg2.FontDataOwnedByAtlas = false;
+            io.Fonts->AddFontFromFileTTF(full, px, &cfg2, kRanges);
+            LOGI("overlay: using scanned font %s", full);
+            closedir(d);
+            return true;
+        }
+        closedir(d);
+    }
+    LOGE("overlay: no usable system CJK font found (dynamic text may show '?')");
+    return false;
+}
+
 static void load_fonts(float px) {
     ImGuiIO& io = ImGui::GetIO();
     ImFontConfig cfg;
@@ -209,18 +268,8 @@ static void load_fonts(float px) {
     // primary: embedded subset (guaranteed to render all UI text)
     io.Fonts->AddFontFromMemoryTTF((void*)g_font_subset_ttf, (int)g_font_subset_ttf_len,
                                    px, &cfg, kRanges);
-    // fallback: system CJK font for arbitrary file names (TrueType only;
-    // CFF/OTTO variants are skipped to avoid ImGui's stb assert)
-    for (const char* p : kSystemFonts) {
-        if (file_exists(p) && font_file_supported(p)) {
-            ImFontConfig cfg2 = cfg;
-            cfg2.MergeMode = true;
-            cfg2.FontDataOwnedByAtlas = false;
-            io.Fonts->AddFontFromFileTTF(p, px, &cfg2, kRanges);
-            LOGI("overlay: using system font %s", p);
-            break;
-        }
-    }
+    // fallback: system CJK font for dynamic text (file names etc.)
+    try_load_system_font(px, cfg);
 }
 
 // ------------------------------------------------------------------ state
@@ -573,7 +622,7 @@ static void draw_settings_page() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.1.7", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+    ImGui::TextDisabled("%s v1.1.8", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }
@@ -711,8 +760,9 @@ static void draw_overlay(float w, float h) {
         input_get_button_rect(&bx0, &by0, &bx1, &by1); // Unity coords (y-up)
         ImVec2 pos(bx0, h - by1);
         ImVec2 size(bx1 - bx0, by1 - by0);
-        if (size.x < 20.0f || size.y < 20.0f) {
-            // first frame: seed a default button (top-left)
+        if (size.x < 20.0f || size.y < 20.0f ||
+            bx1 < 0 || bx0 > w || by1 < 0 || by0 > h) {
+            // first frame, or the rect ended up fully off-screen: seed default
             pos = ImVec2(10, 10);
             size = ImVec2(200.0f * g_scale, 80.0f * g_scale);
         }

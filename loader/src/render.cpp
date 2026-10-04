@@ -16,6 +16,7 @@
 typedef EGLBoolean (*pfn_eglSwapBuffers)(EGLDisplay dpy, EGLSurface surface);
 static pfn_eglSwapBuffers orig_eglSwapBuffers = nullptr;
 static EGLContext g_main_context = EGL_NO_CONTEXT;
+static int g_ctx_skip = 0;
 
 static bool  g_gl_ready = false;
 static void* g_last_context = nullptr;
@@ -48,17 +49,23 @@ static void ensure_gl_ready(EGLDisplay dpy, EGLSurface surf) {
 
 extern "C" EGLBoolean hk_eglSwapBuffers(EGLDisplay dpy, EGLSurface surface) {
     // draw the overlay on top of Unity's frame before presenting.
-    // IMPORTANT: only render on Unity's main GL context. Other overlay tools
-    // (e.g. the original libTool) render on their own EGL surfaces; touching
-    // their context here would corrupt their state -> crash. Coexistence:
-    // foreign contexts pass through untouched.
+    // Only render on Unity's main GL context. If the game recreates its
+    // context (observed on some devices/launches), re-capture after a short
+    // grace period so the overlay doesn't stay invisible forever.
     if (orig_eglSwapBuffers) {
         EGLContext ctx = eglGetCurrentContext();
         if (g_main_context == EGL_NO_CONTEXT && ctx != EGL_NO_CONTEXT) {
             g_main_context = ctx;
             LOGI("render: main GL context captured");
         }
-        if (ctx == g_main_context) {
+        if (ctx != g_main_context) {
+            if (ctx != EGL_NO_CONTEXT && ++g_ctx_skip > 120) {
+                g_main_context = ctx;
+                g_ctx_skip = 0;
+                LOGI("render: main GL context re-captured");
+            }
+        } else {
+            g_ctx_skip = 0;
             ensure_gl_ready(dpy, surface);
             if (g_gl_ready) {
                 EGLint w = 0, h = 0;

@@ -41,16 +41,29 @@ const char* get_data_dir() {
     return g_data_dir;
 }
 
+static void mkdirs(const char* path) {
+    // create each path component (mkdir is not recursive); needed for
+    // renamed packages whose /Android/data/<pkg> root doesn't exist yet
+    char tmp[700];
+    snprintf(tmp, sizeof(tmp), "%s", path);
+    for (char* p = tmp + 1; *p; p++) {
+        if (*p == '/') {
+            *p = 0;
+            mkdir(tmp, 0777);
+            *p = '/';
+        }
+    }
+    mkdir(tmp, 0777);
+}
+
 static void log_file_open() {
     if (g_log_file || g_log_tried) return;
     g_log_tried = true;
     resolve_data_dir();
     char dir[700];
     snprintf(dir, sizeof(dir), "%s/log", g_data_dir);
-    char base[600];
-    snprintf(base, sizeof(base), "%s", g_data_dir);
-    mkdir(base, 0777);
-    mkdir(dir, 0777);
+    mkdirs(g_data_dir);
+    mkdirs(dir);
     char path[800];
     snprintf(path, sizeof(path), "%s/adofailoader.log", dir);
     g_log_file = fopen(path, "a");
