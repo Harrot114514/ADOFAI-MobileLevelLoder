@@ -25,6 +25,39 @@ jobs:
       - name: Build
         run: bash loader/build_ci.sh
 
+      # 从 UpdateLog.md 提取对应版本的更新日志作为 Release 说明
+      - name: Extract changelog section
+        run: |
+          python3 - <<'PYEOF'
+          import os, re
+
+          def extract(version=None):
+              text = open('UpdateLog.md', encoding='utf-8').read()
+              parts = re.split(r'(?m)^## ', text)
+              sections = ['## ' + p for p in parts[1:]]
+              if not sections:
+                  return text.strip()[-4000:]
+              if version:
+                  v = version.lstrip('vV')
+                  for sec in sections:
+                      if v in sec.splitlines()[0]:
+                          return sec.strip()
+              return sections[0].strip()
+
+          ref = os.environ.get('GITHUB_REF', '')
+          name = os.environ.get('GITHUB_REF_NAME', '')
+          is_tag = ref.startswith('refs/tags/')
+          body = extract(name if is_tag else None)
+          if not is_tag:
+              body = ('> 自动构建预发布版（滚动更新，指向最新主分支产物）\n'
+                      '> 提交: `%s`\n\n' % os.environ.get('GITHUB_SHA', '')) + body
+          with open('/tmp/release_body.md', 'w', encoding='utf-8') as f:
+              f.write(body + '\n\n---\n产物: `libadofailoader.so`（放入 APK 的 lib/arm64-v8a/，'
+                             '并按 install.txt 植入加载代码）\n')
+          PYEOF
+          echo "=== release body preview ==="
+          head -25 /tmp/release_body.md
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
@@ -39,21 +72,17 @@ jobs:
         with:
           tag_name: ci-latest
           name: "CI 预发布版 (自动构建)"
-          body: |
-            ## 自动构建预发布版
-            - 提交: ${{ github.sha }}
-            - 分支: ${{ github.ref_name }}
-            - 产物: libadofailoader.so
+          body_path: /tmp/release_body.md
           prerelease: true
           make_latest: false
           files: loader/out/libadofailoader.so
 
-      # 打 tag（v*）时发正式 Release
+      # 打 tag（v*）时发正式 Release，说明 = UpdateLog.md 对应版本章节
       - name: Create release from tag
         if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           name: ${{ github.ref_name }}
-          generate_release_notes: true
+          body_path: /tmp/release_body.md
           prerelease: false
           files: loader/out/libadofailoader.so
