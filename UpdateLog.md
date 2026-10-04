@@ -5,6 +5,90 @@
 
 ---
 
+## v1.1.8（2026-10-03）
+
+### 问题修复
+- **部分用户第二次进游戏悬浮按钮消失**（日志一切正常）：
+  ① GL 上下文隔离逻辑只捕获"首个上下文"，若游戏在第二次启动时重建了
+  EGL 上下文（部分设备的启动流程如此），后续所有帧被放行跳过 →
+  悬浮按钮永远不绘制。修复：上下文被跳过超过 120 帧（约 2 秒）后
+  **自动重捕获新上下文**（日志打印 `main GL context re-captured`）。
+  ② 按钮矩形兜底：若矩形完全跑到屏幕外（坐标异常/环境变化），
+  自动重置为默认位置。
+- **部分设备仍有中文/日语显示 ?**（动态文本，如文件名）：
+  ① 内嵌字体升级为**全 CJK 字符集**（41248 字：CJK 统一表意
+  0x4E00-0x9FFF + 扩展 A + 假名 + 韩文音节 + 全角符号，8.13MB）——
+  中文（含生僻/繁体）、日语、韩文全部内嵌渲染，不再依赖系统字体；
+  ② 保留系统字体目录扫描作为超出全集范围的符号兜底。
+- **换包名后无本地日志**：日志目录的 mkdir 不递归，重命名包名的
+  /Android/data/<pkg> 父目录不存在导致创建失败。修复：**逐级创建目录**。
+
+### 版本
+- 工具内版本号同步至 **v1.1.8**（JNI_OnLoad 日志 + 设置页）。
+
+---
+
+## EMA v0.1.1（2026-08-24）（测试性已废弃项目）
+
+### 问题修复
+- **单独启动崩溃**：overlay_gl_init 遗漏 `ImGui_ImplOpenGL3_Init()`，
+  NewFrame 断言崩溃 → 已补上。
+- **双装崩溃**：加载器与 EMA 同时 hook UnityEngine.Input（同址双重 hook
+  导致 mousePosition 递归，152 帧）→ 加载器被 EMA 托管时**跳过输入 hook**，
+  由 EMA 转发触摸。
+
+### 整合（工具箱托管加载器）
+- 加载器：移除悬浮球（改由工具箱打开）；导出 loader_open_ui /
+  loader_ui_open / loader_feed_im_touch 三个接口；被托管时跳过输入 hook。
+- EMA：第三方工具页点「移动端铺面加载器」→ 关闭 EMA 窗口并打开加载器
+  UI（一次只开一个界面）；触摸转发给加载器；加载器关闭后自动回到 EMA
+  窗口；任一界面打开时屏蔽游戏输入。
+- EMA 悬浮球：改为圆形悬浮球（88×88×scale，双缩脲紫），
+  **预留 SVG logo 绘制空位**（overlay.cpp 中标注位置，后续粘贴 logo 代码），
+  靠边自动隐藏。
+
+---
+
+## EMA v0.1.0（2026-08-24，ExtraMobileadofai 工具箱）（测试性已废弃项目）
+
+### 概览
+- 名称：ExtraMobileadofai (EMA)——工具内仅显示英文名。
+- 安装方式与铺面加载器一致（dex 植入 loadLibrary，库名 **extramobileadofai**）。
+- 四页界面：功能 / 第三方工具 / 设置 / 关于。
+
+### 功能页（胶囊开关）
+- 返回主页面（按钮，干净退出到移动端主页）
+- 启用工具端异步（实验性）→ RDC.useAsyncInput
+- 启用判定选择 → DetermineDifficultyUIMode 强制 ShowAll
+- 启用不败模式 → GCS.useNoFail + scrController.noFail
+- 启用PC端判定 → get_isMobile 覆盖为 false
+- 启用原生帧率显示 → GCS.showFPS
+- 启用调试模式 → RDC.debug
+- 启用开发者模式 → get_isDev 覆盖（不建议对玩家开放）
+- 启用无UI模式 → RDC.noHud
+- 启用旧版本自动播放 → RDC.useOldAuto
+- 启用愚人节反转 → GCS.FOOL_SWIRL
+- 启用愚人节模式 → IsAprilFools 覆盖
+- 启用新春模式 → IsCNY 覆盖
+- 启用万圣节模式 → IsHalloweenWeek 覆盖
+
+### 第三方工具页
+- 移动端铺面加载器（按钮 → dlopen libadofailoader.so）
+- 模组加载器（预留，禁用状态）
+
+### 设置页
+- 语言（中文/English，修改后同步到铺面加载器的 ini）
+- 主题（暗色/亮色，双缩脲紫）
+- 清理日志（与加载器共用同一日志文件 files/log/adofailoader.log）
+
+### 关于页
+- 项目名 ExtraMobileadofai (EMA) + 双语介绍
+- 版本 v0.1.0
+- 哔哩哔哩按钮（https://b23.tv/MkrcK9r）
+- GitHub 按钮（https://github.com/Harrot114514/ADOFAI-ExtraMobileadofai）
+
+---
+
 ## v1.1.7（2026-08-22）
 
 ### 修改
