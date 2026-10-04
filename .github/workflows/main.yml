@@ -1,0 +1,42 @@
+name: Build libadofailoader
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download Android NDK r27d
+        run: |
+          curl -sSL -o android-ndk.zip https://dl.google.com/android/repository/android-ndk-r27d-linux.zip
+          unzip -q android-ndk.zip -d "$HOME"
+          echo "NDK_ROOT=$HOME/android-ndk-r27d" >> "$GITHUB_ENV"
+
+      - name: Build
+        run: bash loader/build_ci.sh
+
+      - name: Run host-side tests
+        run: |
+          cd loader/tests
+          mkdir -p /tmp/tt/android
+          cp android_log_stub.h /tmp/tt/android/log.h
+          cp ../src/input.cpp ../src/input.hpp /tmp/tt/
+          g++ -O2 -o /tmp/t3 test3.cpp ../src/hooks.cpp ../src/hooks_asm.S ../src/util.cpp -I/tmp/tt -I. -I../src -DINPUT_TEST -Wno-attributes
+          /tmp/t3
+          g++ -O2 -o /tmp/t1 test.cpp ../src/hooks.cpp ../src/hooks_asm.S ../src/util.cpp -I/tmp/tt -I. -I../src -Wno-attributes
+          /tmp/t1
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: libadofailoader
+          path: loader/out/libadofailoader.so
+          if-no-files-found: error
+          
