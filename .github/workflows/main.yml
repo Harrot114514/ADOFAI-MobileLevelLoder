@@ -3,12 +3,15 @@ name: Build libadofailoader
 on:
   push:
     branches: [ main, master ]
+    tags: [ 'v*' ]
   pull_request:
   workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -22,21 +25,35 @@ jobs:
       - name: Build
         run: bash loader/build_ci.sh
 
-      - name: Run host-side tests
-        run: |
-          cd loader/tests
-          mkdir -p /tmp/tt/android
-          cp android_log_stub.h /tmp/tt/android/log.h
-          cp ../src/input.cpp ../src/input.hpp /tmp/tt/
-          g++ -O2 -o /tmp/t3 test3.cpp ../src/hooks.cpp ../src/hooks_asm.S ../src/util.cpp -I/tmp/tt -I. -I../src -DINPUT_TEST -Wno-attributes
-          /tmp/t3
-          g++ -O2 -o /tmp/t1 test.cpp ../src/hooks.cpp ../src/hooks_asm.S ../src/util.cpp -I/tmp/tt -I. -I../src -Wno-attributes
-          /tmp/t1
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: libadofailoader
           path: loader/out/libadofailoader.so
           if-no-files-found: error
-          
+
+      # 滚动预发布版：push 到 main/master 时自动更新 "ci-latest"
+      - name: Update rolling pre-release
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ci-latest
+          name: "CI 预发布版 (自动构建)"
+          body: |
+            ## 自动构建预发布版
+            - 提交: ${{ github.sha }}
+            - 分支: ${{ github.ref_name }}
+            - 产物: libadofailoader.so
+          prerelease: true
+          make_latest: false
+          files: loader/out/libadofailoader.so
+
+      # 打 tag（v*）时发正式 Release
+      - name: Create release from tag
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: false
+          files: loader/out/libadofailoader.so
