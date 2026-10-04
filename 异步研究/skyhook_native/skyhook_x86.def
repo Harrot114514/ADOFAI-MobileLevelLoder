@@ -1,0 +1,17 @@
+; skyhook_x86.def — x86 (32位) 导出名
+; Mono 的 DllImport 默认 Winapi=stdcall：先探测未修饰名，再探测 _Name@N 修饰名。
+; 这里用别名同时导出两种名字。
+LIBRARY skyhook
+EXPORTS
+    StartHook      = _StartHook@4
+    StopHook       = _StopHook@0
+    HookIsRunning  = _HookIsRunning@0
+    SetContext     = _SetContext@4
+    GetKeyLabel    = _GetKeyLabel@4
+    GetKeyCode     = _GetKeyCode@4
+    _StartHook@4
+    _StopHook@0
+    _HookIsRunning@0
+    _SetContext@4
+    _GetKeyLabel@4
+    _GetKeyCode@4

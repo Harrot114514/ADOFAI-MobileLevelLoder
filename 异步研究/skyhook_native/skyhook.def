@@ -1,0 +1,9 @@
+; skyhook.def — x64 导出名（调用约定统一，仅未修饰名）
+LIBRARY skyhook
+EXPORTS
+    StartHook
+    StopHook
+    HookIsRunning
+    SetContext
+    GetKeyLabel
+    GetKeyCode

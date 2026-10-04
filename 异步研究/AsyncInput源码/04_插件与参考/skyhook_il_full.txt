@@ -1,0 +1,866 @@
+﻿==== TYPE .<Module> ====
+==== TYPE .UnitySourceGeneratedAssemblyMonoScriptTypes_v1 ====
+  METHOD .MonoScriptData Get (Private, Static, HideBySig)
+  RAW: 1200fe150b000002120020ad0100008d1900000125d08d000004280800000a7d8f000004120020880000008d1900000125d08e000004280800000a7d9000000412001b7d9200000412001b7d910000041200167d93000004062a
+  IL_0000: ldloca.s 0
+  IL_0002: initobj TypeDefinition
+  IL_0008: ldloca.s 0
+  IL_000a: ldc.i4 429
+  IL_000f: newarr System.Byte
+  IL_0014: dup
+  IL_0015: ldtoken 21F65C499613BC1D44CCE19E19A016861058FBBC1313B99D009043D76CC31929
+  IL_001a: call InitializeArray/void,System.Array,System.RuntimeFieldHandle
+  IL_001f: stfld FilePathsData
+  IL_0024: ldloca.s 0
+  IL_0026: ldc.i4 136
+  IL_002b: newarr System.Byte
+  IL_0030: dup
+  IL_0031: ldtoken EF58E2298AF638A7AB2399BD8CCC939B565E0ED4428BD39B18D50197D6A253CB
+  IL_0036: call InitializeArray/void,System.Array,System.RuntimeFieldHandle
+  IL_003b: stfld TypesData
+  IL_0040: ldloca.s 0
+  IL_0042: ldc.i4.5
+  IL_0043: stfld TotalFiles
+  IL_0048: ldloca.s 0
+  IL_004a: ldc.i4.5
+  IL_004b: stfld TotalTypes
+  IL_0050: ldloca.s 0
+  IL_0052: ldc.i4.0
+  IL_0053: stfld IsEditorOnly
+  IL_0058: ldloc.0
+  IL_0059: ret
+  METHOD void .ctor (Public, HideBySig, SpecialName, RTSpecialName)
+  RAW: 02280900000a2a
+  IL_0000: ldarg.0
+  IL_0001: call .ctor/void
+  IL_0006: ret
+==== TYPE SkyHook.SkyHookEvent ====
+  FIELD int64 EpochTicks
+  FIELD int64 TimeSec
+  FIELD uint32 TimeSubsecNano
+  FIELD SkyHook.EventType Type
+  FIELD SkyHook.KeyLabel Label
+  FIELD uint16 Key
+  METHOD int64 GetTimeInTicks (Public, HideBySig)
+  RAW: 027b0200000420809698006a5a027b030000041f645c6e587e01000004582a
+  IL_0000: ldarg.0
+  IL_0001: ldfld TimeSec
+  IL_0006: ldc.i4 10000000
+  IL_000b: conv.i8
+  IL_000c: mul
+  IL_000d: ldarg.0
+  IL_000e: ldfld TimeSubsecNano
+  IL_0013: ldc.i4.s 100
+  IL_0015: div.un
+  IL_0016: conv.u8
+  IL_0017: add
+  IL_0018: ldsfld EpochTicks
+  IL_001d: add
+  IL_001e: ret
+  METHOD void .cctor (Private, Static, HideBySig, SpecialName, RTSpecialName)
+  RAW: 20b20700001717730a00000a0a1200280b00000a80010000042a
+  IL_0000: ldc.i4 1970
+  IL_0005: ldc.i4.1
+  IL_0006: ldc.i4.1
+  IL_0007: newobj .ctor/void,int32,int32,int32
+  IL_000c: stloc.0
+  IL_000d: ldloca.s 0
+  IL_000f: call get_Ticks/int64
+  IL_0014: stsfld EpochTicks
+  IL_0019: ret
+==== TYPE SkyHook.EventType ====
+  FIELD int32 value__
+  FIELD SkyHook.EventType KeyPressed = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.EventType KeyReleased = System.Reflection.Metadata.ConstantHandle
+==== TYPE SkyHook.KeyLabel ====
+  FIELD uint16 value__
+  FIELD SkyHook.KeyLabel Escape = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F1 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F2 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F3 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F4 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F5 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F6 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F7 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F8 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F9 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F10 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F11 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F12 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F13 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F14 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F15 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F16 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F17 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F18 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F19 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F20 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F21 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F22 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F23 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F24 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Grave = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha1 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha2 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha3 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha4 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha5 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha6 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha7 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha8 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha9 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Alpha0 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Minus = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Equal = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Backspace = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Tab = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Q = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel W = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel E = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel R = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel T = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Y = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel U = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel I = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel O = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel P = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel LeftBrace = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel RightBrace = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel BackSlash = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel CapsLock = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel A = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel S = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel D = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel F = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel G = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel H = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel J = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel K = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel L = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Semicolon = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Apostrophe = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Enter = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel LShift = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Z = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel X = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel C = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel V = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel B = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel N = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel M = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Comma = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Dot = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Slash = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel RShift = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel LControl = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Super = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel LAlt = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Space = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel RAlt = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel RControl = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel PrintScreen = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel ScrollLock = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel PauseBreak = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Insert = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Home = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel PageUp = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Delete = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel End = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel PageDown = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel ArrowUp = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel ArrowLeft = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel ArrowDown = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel ArrowRight = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel NumLock = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadSlash = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadAsterisk = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadMinus = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad1 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad2 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad3 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad4 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad5 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad6 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad7 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad8 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad9 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Keypad0 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadDot = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadPlus = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel KeypadEnter = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel MouseLeft = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel MouseRight = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel MouseMiddle = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel MouseX1 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel MouseX2 = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel IgnoredInternal = System.Reflection.Metadata.ConstantHandle
+  FIELD SkyHook.KeyLabel Unknown = System.Reflection.Metadata.ConstantHandle
+==== TYPE SkyHook.SkyHookException ====
+  METHOD void,string .ctor (Public, HideBySig, SpecialName, RTSpecialName)
+  RAW: 0203280c00000a2a
+  IL_0000: ldarg.0
+  IL_0001: ldarg.1
+  IL_0002: call .ctor/void,string
+  IL_0007: ret
+==== TYPE SkyHook.SkyHookKeyMapper ====
+  FIELD System.Collections.Generic.Dictionary`2<SkyHook.KeyLabel,UnityEngine.KeyCode> AsyncKeyToUnityKeyMap
+  FIELD System.Collections.Generic.Dictionary`2<UnityEngine.KeyCode,SkyHook.KeyLabel> UnityKeyToAsyncKeyMap
+  METHOD void,UnityEngine.KeyCode,SkyHook.KeyLabel AddMapping (Private, Static, HideBySig)
+  RAW: 7e8400000403026f0d00000a7e8500000402036f0e00000a2a
+  IL_0000: ldsfld AsyncKeyToUnityKeyMap
+  IL_0005: ldarg.1
+  IL_0006: ldarg.0
+  IL_0007: callvirt set_Item/void,!0,!1
+  IL_000c: ldsfld UnityKeyToAsyncKeyMap
+  IL_0011: ldarg.0
+  IL_0012: ldarg.1
+  IL_0013: callvirt set_Item/void,!0,!1
+  IL_0018: ret
+  METHOD UnityEngine.KeyCode,SkyHook.KeyLabel SkyHookKeyToUnityKey (Public, Static, HideBySig)
+  RAW: 7e840000040216280100002b2a
+  IL_0000: ldsfld AsyncKeyToUnityKeyMap
+  IL_0005: ldarg.0
+  IL_0006: ldc.i4.0
+  IL_0007: call tok2b000001
+  IL_000c: ret
+  METHOD SkyHook.KeyLabel,UnityEngine.KeyCode UnityKeyToSkyHookKey (Public, Static, HideBySig)
+  RAW: 7e85000004021f78280200002b2a
+  IL_0000: ldsfld UnityKeyToAsyncKeyMap
+  IL_0005: ldarg.0
+  IL_0006: ldc.i4.s 120
+  IL_0008: call tok2b000002
+  IL_000d: ret
+  METHOD SkyHook.KeyLabel,uint16 NativeKeyCodeToKeyLabel (Public, Static, HideBySig)
+  RAW: 02281c0000062a
+  IL_0000: ldarg.0
+  IL_0001: call GetKeyLabel
+  IL_0006: ret
+  METHOD uint16,SkyHook.KeyLabel KeyLabelToNativeKeyCode (Public, Static, HideBySig)
+  RAW: 02281d0000062a
+  IL_0000: ldarg.0
+  IL_0001: call GetKeyCode
+  IL_0006: ret
+  METHOD void .cctor (Private, Static, HideBySig, SpecialName, RTSpecialName)
+  RAW: 731000000a8084000004731100000a80850000041e1f2628060000061f091f2728060000061f0d1f4128060000061f131f5628060000061f1b1628060000061f201f5128060000061f2c1f4a28060000061f2d1f2428060000061f2e1f4b28060000061f2f1f4c28060000061f301f2328060000061f311f1a28060000061f321f1b28060000061f331f1c28060000061f341f1d28060000061f351f1e28060000061f361f1f28060000061f371f2028060000061f381f2128060000061f391f2228060000061f3a1f3f28060000061f3b1f3f28060000061f3c1f4a28060000061f3d1f2528060000061f3e1f2528060000061f3f1f4c28060000061f5b1f3228060000061f5c1f3428060000061f5d1f3328060000061f611f3628060000061f621f4728060000061f631f4528060000061f641f3828060000061f651f2a28060000061f661f3928060000061f671f3a28060000061f681f3b28060000061f691f2f28060000061f6a1f3c28060000061f6b1f3d28060000061f6c1f3e28060000061f6d1f4928060000061f6e1f4828060000061f6f1f3028060000061f701f3128060000061f711f2828060000061f721f2b28060000061f731f3728060000061f741f2c28060000061f751f2e28060000061f761f4628060000061f771f2928060000061f781f4428060000061f791f2d28060000061f7a1f4328060000061f7b1f3228060000061f7d1f3328060000061f7c1f3428060000061f7e1f1928060000061f7f1f5a280600000620000100001f6e280600000620010100001f65280600000620020100001f66280600000620030100001f67280600000620040100001f68280600000620050100001f69280600000620060100001f6a280600000620070100001f6b280600000620080100001f6c280600000620090100001f6d2806000006200a0100001f6f2806000006200b0100001f622806000006200c0100001f632806000006200d0100001f642806000006200e0100001f702806000006200f0100001f71280600000620110100001f5d280600000620120100001f5f280600000620130100001f60280600000620140100001f5e280600000620150100001f57280600000620160100001f58280600000620170100001f5b280600000620180100001f59280600000620190100001f5c2806000006201a010000172806000006201b010000182806000006201c010000192806000006201d0100001a2806000006201e0100001b2806000006201f0100001c280600000620200100001d280600000620210100001e280600000620220100001f09280600000620230100001f0a280600000620240100001f0b280600000620250100001f0c280600000620260100001f0d280600000620270100001f0e280600000620280100001f0f2806000006202c0100001f612806000006202d0100001f352806000006202e0100001f552806000006202f0100001f4d280600000620300100001f42280600000620310100001f53280600000620320100001f4e280600000620330100001f52280600000620340100001f50280600000620360100001f4f280600000620350100001f4f280600000620360100001f4f280600000620350100001f4f280600000620370100001f4f280600000620380100001f4f2806000006203c0100001f54280600000620430100001f72280600000620440100001f73280600000620450100001f74280600000620460100001f75280600000620470100001f7628060000062a
+  IL_0000: newobj .ctor/void
+  IL_0005: stsfld AsyncKeyToUnityKeyMap
+  IL_000a: newobj .ctor/void
+  IL_000f: stsfld UnityKeyToAsyncKeyMap
+  IL_0014: ldc.i4.8
+  IL_0015: ldc.i4.s 38
+  IL_0017: call AddMapping
+  IL_001c: ldc.i4.s 9
+  IL_001e: ldc.i4.s 39
+  IL_0020: call AddMapping
+  IL_0025: ldc.i4.s 13
+  IL_0027: ldc.i4.s 65
+  IL_0029: call AddMapping
+  IL_002e: ldc.i4.s 19
+  IL_0030: ldc.i4.s 86
+  IL_0032: call AddMapping
+  IL_0037: ldc.i4.s 27
+  IL_0039: ldc.i4.0
+  IL_003a: call AddMapping
+  IL_003f: ldc.i4.s 32
+  IL_0041: ldc.i4.s 81
+  IL_0043: call AddMapping
+  IL_0048: ldc.i4.s 44
+  IL_004a: ldc.i4.s 74
+  IL_004c: call AddMapping
+  IL_0051: ldc.i4.s 45
+  IL_0053: ldc.i4.s 36
+  IL_0055: call AddMapping
+  IL_005a: ldc.i4.s 46
+  IL_005c: ldc.i4.s 75
+  IL_005e: call AddMapping
+  IL_0063: ldc.i4.s 47
+  IL_0065: ldc.i4.s 76
+  IL_0067: call AddMapping
+  IL_006c: ldc.i4.s 48
+  IL_006e: ldc.i4.s 35
+  IL_0070: call AddMapping
+  IL_0075: ldc.i4.s 49
+  IL_0077: ldc.i4.s 26
+  IL_0079: call AddMapping
+  IL_007e: ldc.i4.s 50
+  IL_0080: ldc.i4.s 27
+  IL_0082: call AddMapping
+  IL_0087: ldc.i4.s 51
+  IL_0089: ldc.i4.s 28
+  IL_008b: call AddMapping
+  IL_0090: ldc.i4.s 52
+  IL_0092: ldc.i4.s 29
+  IL_0094: call AddMapping
+  IL_0099: ldc.i4.s 53
+  IL_009b: ldc.i4.s 30
+  IL_009d: call AddMapping
+  IL_00a2: ldc.i4.s 54
+  IL_00a4: ldc.i4.s 31
+  IL_00a6: call AddMapping
+  IL_00ab: ldc.i4.s 55
+  IL_00ad: ldc.i4.s 32
+  IL_00af: call AddMapping
+  IL_00b4: ldc.i4.s 56
+  IL_00b6: ldc.i4.s 33
+  IL_00b8: call AddMapping
+  IL_00bd: ldc.i4.s 57
+  IL_00bf: ldc.i4.s 34
+  IL_00c1: call AddMapping
+  IL_00c6: ldc.i4.s 58
+  IL_00c8: ldc.i4.s 63
+  IL_00ca: call AddMapping
+  IL_00cf: ldc.i4.s 59
+  IL_00d1: ldc.i4.s 63
+  IL_00d3: call AddMapping
+  IL_00d8: ldc.i4.s 60
+  IL_00da: ldc.i4.s 74
+  IL_00dc: call AddMapping
+  IL_00e1: ldc.i4.s 61
+  IL_00e3: ldc.i4.s 37
+  IL_00e5: call AddMapping
+  IL_00ea: ldc.i4.s 62
+  IL_00ec: ldc.i4.s 37
+  IL_00ee: call AddMapping
+  IL_00f3: ldc.i4.s 63
+  IL_00f5: ldc.i4.s 76
+  IL_00f7: call AddMapping
+  IL_00fc: ldc.i4.s 91
+  IL_00fe: ldc.i4.s 50
+  IL_0100: call AddMapping
+  IL_0105: ldc.i4.s 92
+  IL_0107: ldc.i4.s 52
+  IL_0109: call AddMapping
+  IL_010e: ldc.i4.s 93
+  IL_0110: ldc.i4.s 51
+  IL_0112: call AddMapping
+  IL_0117: ldc.i4.s 97
+  IL_0119: ldc.i4.s 54
+  IL_011b: call AddMapping
+  IL_0120: ldc.i4.s 98
+  IL_0122: ldc.i4.s 71
+  IL_0124: call AddMapping
+  IL_0129: ldc.i4.s 99
+  IL_012b: ldc.i4.s 69
+  IL_012d: call AddMapping
+  IL_0132: ldc.i4.s 100
+  IL_0134: ldc.i4.s 56
+  IL_0136: call AddMapping
+  IL_013b: ldc.i4.s 101
+  IL_013d: ldc.i4.s 42
+  IL_013f: call AddMapping
+  IL_0144: ldc.i4.s 102
+  IL_0146: ldc.i4.s 57
+  IL_0148: call AddMapping
+  IL_014d: ldc.i4.s 103
+  IL_014f: ldc.i4.s 58
+  IL_0151: call AddMapping
+  IL_0156: ldc.i4.s 104
+  IL_0158: ldc.i4.s 59
+  IL_015a: call AddMapping
+  IL_015f: ldc.i4.s 105
+  IL_0161: ldc.i4.s 47
+  IL_0163: call AddMapping
+  IL_0168: ldc.i4.s 106
+  IL_016a: ldc.i4.s 60
+  IL_016c: call AddMapping
+  IL_0171: ldc.i4.s 107
+  IL_0173: ldc.i4.s 61
+  IL_0175: call AddMapping
+  IL_017a: ldc.i4.s 108
+  IL_017c: ldc.i4.s 62
+  IL_017e: call AddMapping
+  IL_0183: ldc.i4.s 109
+  IL_0185: ldc.i4.s 73
+  IL_0187: call AddMapping
+  IL_018c: ldc.i4.s 110
+  IL_018e: ldc.i4.s 72
+  IL_0190: call AddMapping
+  IL_0195: ldc.i4.s 111
+  IL_0197: ldc.i4.s 48
+  IL_0199: call AddMapping
+  IL_019e: ldc.i4.s 112
+  IL_01a0: ldc.i4.s 49
+  IL_01a2: call AddMapping
+  IL_01a7: ldc.i4.s 113
+  IL_01a9: ldc.i4.s 40
+  IL_01ab: call AddMapping
+  IL_01b0: ldc.i4.s 114
+  IL_01b2: ldc.i4.s 43
+  IL_01b4: call AddMapping
+  IL_01b9: ldc.i4.s 115
+  IL_01bb: ldc.i4.s 55
+  IL_01bd: call AddMapping
+  IL_01c2: ldc.i4.s 116
+  IL_01c4: ldc.i4.s 44
+  IL_01c6: call AddMapping
+  IL_01cb: ldc.i4.s 117
+  IL_01cd: ldc.i4.s 46
+  IL_01cf: call AddMapping
+  IL_01d4: ldc.i4.s 118
+  IL_01d6: ldc.i4.s 70
+  IL_01d8: call AddMapping
+  IL_01dd: ldc.i4.s 119
+  IL_01df: ldc.i4.s 41
+  IL_01e1: call AddMapping
+  IL_01e6: ldc.i4.s 120
+  IL_01e8: ldc.i4.s 68
+  IL_01ea: call AddMapping
+  IL_01ef: ldc.i4.s 121
+  IL_01f1: ldc.i4.s 45
+  IL_01f3: call AddMapping
+  IL_01f8: ldc.i4.s 122
+  IL_01fa: ldc.i4.s 67
+  IL_01fc: call AddMapping
+  IL_0201: ldc.i4.s 123
+  IL_0203: ldc.i4.s 50
+  IL_0205: call AddMapping
+  IL_020a: ldc.i4.s 125
+  IL_020c: ldc.i4.s 51
+  IL_020e: call AddMapping
+  IL_0213: ldc.i4.s 124
+  IL_0215: ldc.i4.s 52
+  IL_0217: call AddMapping
+  IL_021c: ldc.i4.s 126
+  IL_021e: ldc.i4.s 25
+  IL_0220: call AddMapping
+  IL_0225: ldc.i4.s 127
+  IL_0227: ldc.i4.s 90
+  IL_0229: call AddMapping
+  IL_022e: ldc.i4 256
+  IL_0233: ldc.i4.s 110
+  IL_0235: call AddMapping
+  IL_023a: ldc.i4 257
+  IL_023f: ldc.i4.s 101
+  IL_0241: call AddMapping
+  IL_0246: ldc.i4 258
+  IL_024b: ldc.i4.s 102
+  IL_024d: call AddMapping
+  IL_0252: ldc.i4 259
+  IL_0257: ldc.i4.s 103
+  IL_0259: call AddMapping
+  IL_025e: ldc.i4 260
+  IL_0263: ldc.i4.s 104
+  IL_0265: call AddMapping
+  IL_026a: ldc.i4 261
+  IL_026f: ldc.i4.s 105
+  IL_0271: call AddMapping
+  IL_0276: ldc.i4 262
+  IL_027b: ldc.i4.s 106
+  IL_027d: call AddMapping
+  IL_0282: ldc.i4 263
+  IL_0287: ldc.i4.s 107
+  IL_0289: call AddMapping
+  IL_028e: ldc.i4 264
+  IL_0293: ldc.i4.s 108
+  IL_0295: call AddMapping
+  IL_029a: ldc.i4 265
+  IL_029f: ldc.i4.s 109
+  IL_02a1: call AddMapping
+  IL_02a6: ldc.i4 266
+  IL_02ab: ldc.i4.s 111
+  IL_02ad: call AddMapping
+  IL_02b2: ldc.i4 267
+  IL_02b7: ldc.i4.s 98
+  IL_02b9: call AddMapping
+  IL_02be: ldc.i4 268
+  IL_02c3: ldc.i4.s 99
+  IL_02c5: call AddMapping
+  IL_02ca: ldc.i4 269
+  IL_02cf: ldc.i4.s 100
+  IL_02d1: call AddMapping
+  IL_02d6: ldc.i4 270
+  IL_02db: ldc.i4.s 112
+  IL_02dd: call AddMapping
+  IL_02e2: ldc.i4 271
+  IL_02e7: ldc.i4.s 113
+  IL_02e9: call AddMapping
+  IL_02ee: ldc.i4 273
+  IL_02f3: ldc.i4.s 93
+  IL_02f5: call AddMapping
+  IL_02fa: ldc.i4 274
+  IL_02ff: ldc.i4.s 95
+  IL_0301: call AddMapping
+  IL_0306: ldc.i4 275
+  IL_030b: ldc.i4.s 96
+  IL_030d: call AddMapping
+  IL_0312: ldc.i4 276
+  IL_0317: ldc.i4.s 94
+  IL_0319: call AddMapping
+  IL_031e: ldc.i4 277
+  IL_0323: ldc.i4.s 87
+  IL_0325: call AddMapping
+  IL_032a: ldc.i4 278
+  IL_032f: ldc.i4.s 88
+  IL_0331: call AddMapping
+  IL_0336: ldc.i4 279
+  IL_033b: ldc.i4.s 91
+  IL_033d: call AddMapping
+  IL_0342: ldc.i4 280
+  IL_0347: ldc.i4.s 89
+  IL_0349: call AddMapping
+  IL_034e: ldc.i4 281
+  IL_0353: ldc.i4.s 92
+  IL_0355: call AddMapping
+  IL_035a: ldc.i4 282
+  IL_035f: ldc.i4.1
+  IL_0360: call AddMapping
+  IL_0365: ldc.i4 283
+  IL_036a: ldc.i4.2
+  IL_036b: call AddMapping
+  IL_0370: ldc.i4 284
+  IL_0375: ldc.i4.3
+  IL_0376: call AddMapping
+  IL_037b: ldc.i4 285
+  IL_0380: ldc.i4.4
+  IL_0381: call AddMapping
+  IL_0386: ldc.i4 286
+  IL_038b: ldc.i4.5
+  IL_038c: call AddMapping
+  IL_0391: ldc.i4 287
+  IL_0396: ldc.i4.6
+  IL_0397: call AddMapping
+  IL_039c: ldc.i4 288
+  IL_03a1: ldc.i4.7
+  IL_03a2: call AddMapping
+  IL_03a7: ldc.i4 289
+  IL_03ac: ldc.i4.8
+  IL_03ad: call AddMapping
+  IL_03b2: ldc.i4 290
+  IL_03b7: ldc.i4.s 9
+  IL_03b9: call AddMapping
+  IL_03be: ldc.i4 291
+  IL_03c3: ldc.i4.s 10
+  IL_03c5: call AddMapping
+  IL_03ca: ldc.i4 292
+  IL_03cf: ldc.i4.s 11
+  IL_03d1: call AddMapping
+  IL_03d6: ldc.i4 293
+  IL_03db: ldc.i4.s 12
+  IL_03dd: call AddMapping
+  IL_03e2: ldc.i4 294
+  IL_03e7: ldc.i4.s 13
+  IL_03e9: call AddMapping
+  IL_03ee: ldc.i4 295
+  IL_03f3: ldc.i4.s 14
+  IL_03f5: call AddMapping
+  IL_03fa: ldc.i4 296
+  IL_03ff: ldc.i4.s 15
+  IL_0401: call AddMapping
+  IL_0406: ldc.i4 300
+  IL_040b: ldc.i4.s 97
+  IL_040d: call AddMapping
+  IL_0412: ldc.i4 301
+  IL_0417: ldc.i4.s 53
+  IL_0419: call AddMapping
+  IL_041e: ldc.i4 302
+  IL_0423: ldc.i4.s 85
+  IL_0425: call AddMapping
+  IL_042a: ldc.i4 303
+  IL_042f: ldc.i4.s 77
+  IL_0431: call AddMapping
+  IL_0436: ldc.i4 304
+  IL_043b: ldc.i4.s 66
+  IL_043d: call AddMapping
+  IL_0442: ldc.i4 305
+  IL_0447: ldc.i4.s 83
+  IL_0449: call AddMapping
+  IL_044e: ldc.i4 306
+  IL_0453: ldc.i4.s 78
+  IL_0455: call AddMapping
+  IL_045a: ldc.i4 307
+  IL_045f: ldc.i4.s 82
+  IL_0461: call AddMapping
+  IL_0466: ldc.i4 308
+  IL_046b: ldc.i4.s 80
+  IL_046d: call AddMapping
+  IL_0472: ldc.i4 310
+  IL_0477: ldc.i4.s 79
+  IL_0479: call AddMapping
+  IL_047e: ldc.i4 309
+  IL_0483: ldc.i4.s 79
+  IL_0485: call AddMapping
+  IL_048a: ldc.i4 310
+  IL_048f: ldc.i4.s 79
+  IL_0491: call AddMapping
+  IL_0496: ldc.i4 309
+  IL_049b: ldc.i4.s 79
+  IL_049d: call AddMapping
+  IL_04a2: ldc.i4 311
+  IL_04a7: ldc.i4.s 79
+  IL_04a9: call AddMapping
+  IL_04ae: ldc.i4 312
+  IL_04b3: ldc.i4.s 79
+  IL_04b5: call AddMapping
+  IL_04ba: ldc.i4 316
+  IL_04bf: ldc.i4.s 84
+  IL_04c1: call AddMapping
+  IL_04c6: ldc.i4 323
+  IL_04cb: ldc.i4.s 114
+  IL_04cd: call AddMapping
+  IL_04d2: ldc.i4 324
+  IL_04d7: ldc.i4.s 115
+  IL_04d9: call AddMapping
+  IL_04de: ldc.i4 325
+  IL_04e3: ldc.i4.s 116
+  IL_04e5: call AddMapping
+  IL_04ea: ldc.i4 326
+  IL_04ef: ldc.i4.s 117
+  IL_04f1: call AddMapping
+  IL_04f6: ldc.i4 327
+  IL_04fb: ldc.i4.s 118
+  IL_04fd: call AddMapping
+  IL_0502: ret
+==== TYPE SkyHook.SkyHookManager ====
+  FIELD SkyHook.SkyHookManager _instance
+  FIELD System.Nullable`1<System.Runtime.InteropServices.GCHandle> _handle
+  FIELD System.Threading.ManualResetEvent _mre
+  FIELD boolean IsFocused
+  FIELD boolean requireFocus
+  FIELD UnityEngine.Events.UnityEvent`1<SkyHook.SkyHookEvent> KeyUpdated
+  METHOD boolean get_isHookActive (Public, HideBySig, SpecialName)
+  RAW: 281a0000062a
+  IL_0000: call HookIsRunning
+  IL_0005: ret
+  METHOD SkyHook.SkyHookManager get_Instance (Public, Static, HideBySig, SpecialName)
+  RAW: 281200000a2d02142a7e86000004281300000a2c067e860000042a7201000070731400000a6f0300002b80860000047e86000004281600000a7e860000042a
+  IL_0000: call get_isPlaying/boolean
+  IL_0005: brtrue.s ->9
+  IL_0007: ldnull
+  IL_0008: ret
+  IL_0009: ldsfld _instance
+  IL_000e: call op_Implicit/boolean,UnityEngine.Object
+  IL_0013: brfalse.s ->27
+  IL_0015: ldsfld _instance
+  IL_001a: ret
+  IL_001b: ldstr "SkyHook Manager"
+  IL_0020: newobj .ctor/void,string
+  IL_0025: callvirt tok2b000003
+  IL_002a: stsfld _instance
+  IL_002f: ldsfld _instance
+  IL_0034: call DontDestroyOnLoad/void,UnityEngine.Object
+  IL_0039: ldsfld _instance
+  IL_003e: ret
+  METHOD void,intptr,SkyHook.SkyHookEvent NativeHookCallback (Private, Static, HideBySig)
+  RAW: 027e1700000a281800000a2c012a02281900000a0a1200281a00000a7408000002036f0f0000062a
+  IL_0000: ldarg.0
+  IL_0001: ldsfld tok0a000017
+  IL_0006: call op_Equality/boolean,intptr,intptr
+  IL_000b: brfalse.s ->14
+  IL_000d: ret
+  IL_000e: ldarg.0
+  IL_000f: call FromIntPtr/System.Runtime.InteropServices.GCHandle,intptr
+  IL_0014: stloc.0
+  IL_0015: ldloca.s 0
+  IL_0017: call get_Target/object
+  IL_001c: castclass TypeDefinition
+  IL_0021: ldarg.1
+  IL_0022: callvirt HookCallback
+  IL_0027: ret
+  METHOD void,SkyHook.SkyHookEvent HookCallback (Private, HideBySig)
+  RAW: 027b8a0000042c107e890000042d09037b040000042d012a7e8b000004036f1c00000a2a
+  IL_0000: ldarg.0
+  IL_0001: ldfld requireFocus
+  IL_0006: brfalse.s ->24
+  IL_0008: ldsfld IsFocused
+  IL_000d: brtrue.s ->24
+  IL_000f: ldarg.1
+  IL_0010: ldfld Type
+  IL_0015: brtrue.s ->24
+  IL_0017: ret
+  IL_0018: ldsfld KeyUpdated
+  IL_001d: ldarg.1
+  IL_001e: callvirt Invoke/void,!0
+  IL_0023: ret
+  METHOD void _StartHook (Private, HideBySig)
+  RAW: 731e0000060a06027d9600000406167d9500000406147d940000040216731d00000a7d88000004020219281e00000a731f00000a7d87000004027c87000004282000000a282100000a281b00000606fe061f000006732200000a732300000a282400000a2b06282500000a26067b950000042d08067b940000042cea067b940000042c07067b940000047a2a
+  IL_0000: newobj .ctor
+  IL_0005: stloc.0
+  IL_0006: ldloc.0
+  IL_0007: ldarg.0
+  IL_0008: stfld <>4__this
+  IL_000d: ldloc.0
+  IL_000e: ldc.i4.0
+  IL_000f: stfld started
+  IL_0014: ldloc.0
+  IL_0015: ldnull
+  IL_0016: stfld exception
+  IL_001b: ldarg.0
+  IL_001c: ldc.i4.0
+  IL_001d: newobj .ctor/void,boolean
+  IL_0022: stfld _mre
+  IL_0027: ldarg.0
+  IL_0028: ldarg.0
+  IL_0029: ldc.i4.3
+  IL_002a: call Alloc/System.Runtime.InteropServices.GCHandle,object,System.Runtime.InteropServices.GCHandleType
+  IL_002f: newobj .ctor/void,!0
+  IL_0034: stfld _handle
+  IL_0039: ldarg.0
+  IL_003a: ldflda _handle
+  IL_003f: call get_Value/!0
+  IL_0044: call ToIntPtr/intptr,System.Runtime.InteropServices.GCHandle
+  IL_0049: call SetContext
+  IL_004e: ldloc.0
+  IL_004f: ldftn <_StartHook>b__0
+  IL_0055: newobj .ctor/void,object,intptr
+  IL_005a: newobj .ctor/void,System.Threading.ThreadStart
+  IL_005f: call Start/void
+  IL_0064: br.s ->108
+  IL_0066: call Yield/boolean
+  IL_006b: pop
+  IL_006c: ldloc.0
+  IL_006d: ldfld started
+  IL_0072: brtrue.s ->124
+  IL_0074: ldloc.0
+  IL_0075: ldfld exception
+  IL_007a: brfalse.s ->102
+  IL_007c: ldloc.0
+  IL_007d: ldfld exception
+  IL_0082: brfalse.s ->139
+  IL_0084: ldloc.0
+  IL_0085: ldfld exception
+  IL_008a: throw
+  IL_008b: ret
+  METHOD void _StopHook (Private, HideBySig)
+  RAW: 28190000060a027c87000004282600000a2c1f027c87000004282000000a0b1201282700000a027c87000004fe150400001b062c070673050000067a027b880000042c0c027b880000046f2800000a262a
+  IL_0000: call StopHook
+  IL_0005: stloc.0
+  IL_0006: ldarg.0
+  IL_0007: ldflda _handle
+  IL_000c: call get_HasValue/boolean
+  IL_0011: brfalse.s ->50
+  IL_0013: ldarg.0
+  IL_0014: ldflda _handle
+  IL_0019: call get_Value/!0
+  IL_001e: stloc.1
+  IL_001f: ldloca.s 1
+  IL_0021: call Free/void
+  IL_0026: ldarg.0
+  IL_0027: ldflda _handle
+  IL_002c: initobj System.Nullable`1<System.Runtime.InteropServices.GCHandle>
+  IL_0032: ldloc.0
+  IL_0033: brfalse.s ->60
+  IL_0035: ldloc.0
+  IL_0036: newobj .ctor
+  IL_003b: throw
+  IL_003c: ldarg.0
+  IL_003d: ldfld _mre
+  IL_0042: brfalse.s ->80
+  IL_0044: ldarg.0
+  IL_0045: ldfld _mre
+  IL_004a: callvirt Set/boolean
+  IL_004f: pop
+  IL_0050: ret
+  METHOD void StartHook (Public, Static, HideBySig)
+  RAW: 281200000a2d0b7221000070282900000a2a280d0000066f100000062a
+  IL_0000: call get_isPlaying/boolean
+  IL_0005: brtrue.s ->18
+  IL_0007: ldstr "You may not call StartHook() if the application is not playing."
+  IL_000c: call LogWarning/void,object
+  IL_0011: ret
+  IL_0012: call get_Instance
+  IL_0017: callvirt _StartHook
+  IL_001c: ret
+  METHOD void StopHook (Public, Static, HideBySig)
+  RAW: 281200000a2d0b72a1000070282900000a2a280d0000066f110000062a
+  IL_0000: call get_isPlaying/boolean
+  IL_0005: brtrue.s ->18
+  IL_0007: ldstr "You may not call StopHook() if the application is not playing."
+  IL_000c: call LogWarning/void,object
+  IL_0011: ret
+  IL_0012: call get_Instance
+  IL_0017: callvirt _StopHook
+  IL_001c: ret
+  METHOD void OnDestroy (Private, HideBySig)
+  RAW: 02280c0000062c060228110000062a
+  IL_0000: ldarg.0
+  IL_0001: call get_isHookActive
+  IL_0006: brfalse.s ->14
+  IL_0008: ldarg.0
+  IL_0009: call _StopHook
+  IL_000e: ret
+  METHOD void Update (Private, HideBySig)
+  RAW: 027b8a0000042c0a282a00000a80890000042a
+  IL_0000: ldarg.0
+  IL_0001: ldfld requireFocus
+  IL_0006: brfalse.s ->18
+  IL_0008: call get_isFocused/boolean
+  IL_000d: stsfld IsFocused
+  IL_0012: ret
+  METHOD void .ctor (Public, HideBySig, SpecialName, RTSpecialName)
+  RAW: 02177d8a00000402282b00000a2a
+  IL_0000: ldarg.0
+  IL_0001: ldc.i4.1
+  IL_0002: stfld requireFocus
+  IL_0007: ldarg.0
+  IL_0008: call .ctor/void
+  IL_000d: ret
+  METHOD void .cctor (Private, Static, HideBySig, SpecialName, RTSpecialName)
+  RAW: 732c00000a808b0000042a
+  IL_0000: newobj .ctor/void
+  IL_0005: stsfld KeyUpdated
+  IL_000a: ret
+==== TYPE SkyHook.SkyHookNative ====
+  FIELD string Lib = System.Reflection.Metadata.ConstantHandle
+  METHOD string,.Callback StartHook (Public, Static, HideBySig, PinvokeImpl)
+  METHOD string StopHook (Public, Static, HideBySig, PinvokeImpl)
+  METHOD boolean HookIsRunning (Public, Static, HideBySig, PinvokeImpl)
+  METHOD void,intptr SetContext (Public, Static, HideBySig, PinvokeImpl)
+  METHOD SkyHook.KeyLabel,uint16 GetKeyLabel (Public, Static, HideBySig, PinvokeImpl)
+  METHOD uint16,SkyHook.KeyLabel GetKeyCode (Public, Static, HideBySig, PinvokeImpl)
+==== TYPE .<PrivateImplementationDetails> ====
+  FIELD .__StaticArrayInitTypeSize=429 21F65C499613BC1D44CCE19E19A016861058FBBC1313B99D009043D76CC31929
+  FIELD .__StaticArrayInitTypeSize=136 EF58E2298AF638A7AB2399BD8CCC939B565E0ED4428BD39B18D50197D6A253CB
+==== TYPE MonoScriptData ====
+  FIELD byte[] FilePathsData
+  FIELD byte[] TypesData
+  FIELD int32 TotalTypes
+  FIELD int32 TotalFiles
+  FIELD boolean IsEditorOnly
+==== TYPE <>c__DisplayClass12_0 ====
+  FIELD System.Exception exception
+  FIELD boolean started
+  FIELD SkyHook.SkyHookManager <>4__this
+  METHOD void .ctor (Public, HideBySig, SpecialName, RTSpecialName)
+  RAW: 02280900000a2a
+  IL_0000: ldarg.0
+  IL_0001: call .ctor/void
+  IL_0006: ret
+  METHOD void <_StartHook>b__0 (Assembly, HideBySig)
+  RAW: 14fe060e000006732000000628180000060a062c0c020673050000067d9400000402177d95000004027b960000047b880000046f2d00000a26721f010070282e00000ade100b02077d9400000407282f00000afe1a2a
+  IL_0000: ldnull
+  IL_0001: ldftn NativeHookCallback
+  IL_0007: newobj .ctor
+  IL_000c: call StartHook
+  IL_0011: stloc.0
+  IL_0012: ldloc.0
+  IL_0013: brfalse.s ->33
+  IL_0015: ldarg.0
+  IL_0016: ldloc.0
+  IL_0017: newobj .ctor
+  IL_001c: stfld exception
+  IL_0021: ldarg.0
+  IL_0022: ldc.i4.1
+  IL_0023: stfld started
+  IL_0028: ldarg.0
+  IL_0029: ldfld <>4__this
+  IL_002e: ldfld _mre
+  IL_0033: callvirt WaitOne/boolean
+  IL_0038: pop
+  IL_0039: ldstr "Thread ended"
+  IL_003e: call Log/void,object
+  IL_0043: leave.s ->85
+  IL_0045: stloc.1
+  IL_0046: ldarg.0
+  IL_0047: ldloc.1
+  IL_0048: stfld exception
+  IL_004d: ldloc.1
+  IL_004e: call LogError/void,object
+  IL_0053: rethrow
+  IL_0055: ret
+==== TYPE Callback ====
+  METHOD void,object,intptr .ctor (Public, HideBySig, SpecialName, RTSpecialName)
+  METHOD void,intptr,SkyHook.SkyHookEvent Invoke (Public, Virtual, HideBySig, VtableLayoutMask)
+  METHOD System.IAsyncResult,intptr,SkyHook.SkyHookEvent,System.AsyncCallback,object BeginInvoke (Public, Virtual, HideBySig, VtableLayoutMask)
+  METHOD void,System.IAsyncResult EndInvoke (Public, Virtual, HideBySig, VtableLayoutMask)
+==== TYPE __StaticArrayInitTypeSize=136 ====
+==== TYPE __StaticArrayInitTypeSize=429 ====
