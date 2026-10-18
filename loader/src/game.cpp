@@ -146,6 +146,7 @@ bool game_in_gameplay_scene() {
 // ------------------------------------------------------------------ NoFail / difficulty
 
 static bool g_queued_no_fail = false;
+static bool g_queued_goto_menu_fwd = false; // (see definition below)
 static bool g_queued_no_fail_val = false;
 static bool g_queued_diff = false;
 static int  g_queued_diff_val = 0;
@@ -198,6 +199,21 @@ void game_apply_queued_options() {
         typedef void (*pfn_ls)(void*);
         ((pfn_ls)(g_il2cpp_base + 0x45D8190))(il2cpp.string_new("scnMobileMenu"));
         LOGI("game: quit to mobile menu issued");
+    }
+    if (g_queued_goto_menu_fwd) {
+        g_queued_goto_menu_fwd = false;
+        // Do NOT use ADOBase.GoToLevelSelect(): its DOTween.KillAll() walks
+        // (and kills) every tween and trips the corrupted-string path -> crash.
+        // Clear the custom-level state and load the menu scene directly.
+        if (cls_gcs) {
+            void* statics = *(void**)((uint8_t*)cls_gcs + 0xB8);
+            if (statics) {
+                *(void**)((uint8_t*)statics + 0x70) = nullptr; // customLevelPaths
+                *(void**)((uint8_t*)statics + 0x80) = nullptr; // internalLevelName
+            }
+        }
+        LOGI("game: deferred menu load (direct, no DOTween.KillAll)");
+        ((void (*)(void*))(g_il2cpp_base + 0x45D8190))(il2cpp.string_new("scnMobileMenu"));
     }
 }
 
@@ -519,6 +535,83 @@ extern "C" int32_t hk_DetermineDifficultyUIMode_c(float bpm) {
 
 
 
+// ---------------------------------------------------------------- scnCLS fix
+// QuitToMainMenu / Portal.CustomLevelsScene / LoadAndPlayLevel's failure path
+// all load the PC-only "scnCLS" scene (absent from the mobile build) through
+// SceneManager, which throws and breaks the transition. Intercept the 5
+// name-based load overloads and route to the game's own
+// ADOBase.GoToLevelSelect() (it uses GCNS.sceneLevelSelect, which ADOStartup
+// rewrites to "scnMobileMenu" on mobile - no managed string needed).
+static const uint64_t RVA_SceneManager_LS1        = 0x45D8190; // LoadScene(string)
+static const uint64_t RVA_SceneManager_LS2        = 0x45D8090; // LoadScene(string, LoadSceneMode)
+static const uint64_t RVA_SceneManager_LS3        = 0x45D80FC; // LoadScene(string, LoadSceneParameters) -> Scene(int)
+static const uint64_t RVA_SceneManager_LSA1       = 0x45D82D4; // LoadSceneAsync(string)
+static const uint64_t RVA_SceneManager_LSA2       = 0x45D832C; // LoadSceneAsync(string, LoadSceneParameters)
+static const uint64_t RVA_ADOBase_GoToLevelSelect = 0x2420BBC; // static void GoToLevelSelect()
+
+typedef void    (*pfn_ls1)(void* name);
+typedef void    (*pfn_ls2)(void* name, int32_t mode);
+typedef int32_t (*pfn_ls3)(void* name, int32_t mode, int32_t phys);
+typedef void*   (*pfn_lsa1)(void* name);
+typedef void*   (*pfn_lsa2)(void* name, int32_t mode, int32_t phys);
+
+static pfn_ls1  orig_ls1 = nullptr;
+static pfn_ls2  orig_ls2 = nullptr;
+static pfn_ls3  orig_ls3 = nullptr;
+static pfn_lsa1 orig_lsa1 = nullptr;
+static pfn_lsa2 orig_lsa2 = nullptr;
+
+// case-insensitive compare with "scncls"
+static bool scene_is_scncls(void* name) {
+    if (!name) return false;
+    int32_t len = *(int32_t*)((uint8_t*)name + 0x10);
+    if (len != 6) return false;
+    const uint16_t* c = (const uint16_t*)((uint8_t*)name + 0x14);
+    static const char k[] = "scncls";
+    for (int i = 0; i < 6; i++) {
+        uint16_t ch = c[i];
+        if (ch >= 'A' && ch <= 'Z') ch = (uint16_t)(ch + 32);
+        if (ch != (uint16_t)(unsigned char)k[i]) return false;
+    }
+    return true;
+}
+
+// NOTE: ADOBase.GoToLevelSelect() calls DOTween.KillAll(). The scnCLS load
+// happens inside a DOTween tween callback (the wipe transition), so calling
+// it directly re-enters/kills the running tween -> crash. Queue it and run
+// it from the main-thread action processor instead (next frame, outside the
+// tween callback stack).
+static void go_to_level_select() {
+    g_queued_goto_menu_fwd = true;
+    static uint64_t last = 0;
+    uint64_t now = monotonic_ms();
+    if (now - last >= 500) {
+        last = now;
+        LOGI("game: scnCLS intercepted -> queued GoToLevelSelect");
+    }
+}
+
+extern "C" void hk_LS1_c(void* name) {
+    if (g_ready && scene_is_scncls(name)) { go_to_level_select(); return; }
+    orig_ls1(name);
+}
+extern "C" void hk_LS2_c(void* name, int32_t mode) {
+    if (g_ready && scene_is_scncls(name)) { go_to_level_select(); return; }
+    orig_ls2(name, mode);
+}
+extern "C" int32_t hk_LS3_c(void* name, int32_t mode, int32_t phys) {
+    if (g_ready && scene_is_scncls(name)) { go_to_level_select(); return 0; }
+    return orig_ls3(name, mode, phys);
+}
+extern "C" void* hk_LSA1_c(void* name) {
+    if (g_ready && scene_is_scncls(name)) { go_to_level_select(); return nullptr; }
+    return orig_lsa1(name);
+}
+extern "C" void* hk_LSA2_c(void* name, int32_t mode, int32_t phys) {
+    if (g_ready && scene_is_scncls(name)) { go_to_level_select(); return nullptr; }
+    return orig_lsa2(name, mode, phys);
+}
+
 // ---------------------------------------------------------------- load hooks
 // The game's LevelData.LoadLevel takes the INTERNAL-level branch (WorldData
 // dictionary lookups keyed by the level path, path.Split('-'), ...) whenever
@@ -741,6 +834,15 @@ bool game_install_load_level_hooks() {
         (void*)(g_il2cpp_base + RVA_scnGame_ReloadCustomSounds), (void*)&hk_ReloadCustomSounds_c);
 
     // diagnostic probes
+
+    // scnCLS -> ADOBase.GoToLevelSelect (mobile main menu)
+    orig_ls1  = (pfn_ls1)hook_install((void*)(g_il2cpp_base + RVA_SceneManager_LS1), (void*)&hk_LS1_c);
+    orig_ls2  = (pfn_ls2)hook_install((void*)(g_il2cpp_base + RVA_SceneManager_LS2), (void*)&hk_LS2_c);
+    orig_ls3  = (pfn_ls3)hook_install((void*)(g_il2cpp_base + RVA_SceneManager_LS3), (void*)&hk_LS3_c);
+    orig_lsa1 = (pfn_lsa1)hook_install((void*)(g_il2cpp_base + RVA_SceneManager_LSA1), (void*)&hk_LSA1_c);
+    orig_lsa2 = (pfn_lsa2)hook_install((void*)(g_il2cpp_base + RVA_SceneManager_LSA2), (void*)&hk_LSA2_c);
+    LOGI("game: scnCLS hooks ok (ls1=%p ls2=%p ls3=%p lsa1=%p lsa2=%p)",
+         (void*)orig_ls1, (void*)orig_ls2, (void*)orig_ls3, (void*)orig_lsa1, (void*)orig_lsa2);
 
     bool ok = orig_loadandplay && orig_scngame_loadlevel && orig_leveldata_loadlevel && orig_get_isinternal;
     LOGI("game: load-level hooks %s", ok ? "ok" : "FAILED");

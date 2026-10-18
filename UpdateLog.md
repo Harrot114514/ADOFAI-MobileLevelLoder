@@ -5,6 +5,28 @@
 
 ---
 
+## v1.1.9（2026-10-18）
+
+### 问题修复
+- **打完关卡 / 退出时跳 scnCLS 报错（彻底解决）**：
+  通过 PC 端反编译代码定位：`scrController.QuitToMainMenu()` 的自定义关卡分支
+  写死 `GCS.sceneToLoad = "scnCLS"`（PC 选关场景，移动端 build 里不存在）；
+  `Portal.CustomLevelsScene` 与 `LoadAndPlayLevel` 的加载失败兜底同样写死。
+  Unity 在 SceneManager.LoadScene 内部抛 ArgumentException → 弹错误框/黑屏。
+  修复：hook `SceneManager` 的 5 个按名加载重载
+  （LoadScene(string) / (string,mode) / (string,params) /
+  LoadSceneAsync(string) / (string,params)），目标名等于 scnCLS
+  （大小写不敏感）时改道 **`ADOBase.GoToLevelSelect()`** ——
+  游戏自己的回主菜单（内部 `DOTween.KillAll(); LoadScene(GCNS.sceneLevelSelect)`，
+  安卓上 GCNS.sceneLevelSelect 已被 ADOStartup 改写为 `scnMobileMenu`），
+  用游戏自己的场景名，不需要我们构造 managed string，最稳。
+  日志：`game: scnCLS intercepted -> ADOBase.GoToLevelSelect()`。
+
+### 版本
+- 工具内版本号同步至 **v1.1.9**（JNI_OnLoad 日志 + 设置页）。
+
+---
+
 ## v1.1.8（2026-10-03）
 
 ### 问题修复
