@@ -5,6 +5,27 @@
 
 ---
 
+## v1.1.10.1（2026-11-15）
+
+### 问题修复
+- **游玩中崩溃：`ArgumentException: RenderTextureDesc height must be greater than zero`**
+  （报错栈：`CameraFilterPack_Glow_Glow_Color.OnRenderImage` →
+  `RenderTexture.GetTemporary` → `ValidateRenderTextureDesc`）。
+  - **原因**：游戏内嵌的第三方后处理包 Camera Filter Pack 的特效脚本按
+    「相机目标纹理尺寸」申请临时 RT；某一帧目标纹理为 0×0（转场/过场、
+    视口尺寸为 0 的那一帧）时请求 0 高度 RT，Unity 直接抛异常带走进程。
+  - **修复**：运行时给 `UnityEngine.RenderTexture.GetTemporary` 的**全部 8 个重载**
+    套保护（inline hook + 参数透传），把 0/负数宽高钳到 1×1——那一帧只丢一次光晕。
+  - 只在值明确非法（`0` 或 `-1…-256`）时改写，像指针的大值原样透传；
+    触发时记录日志（前 8 次）：`renderfix: RenderTexture.GetTemporary(0, 1080) -> (1, 1080)`。
+- 新增 `loader/src/renderfix.{hpp,cpp}`；`game.cpp` 在 `game_init()` / `game_load_level()`
+  中懒初始化安装（幂等 + 2 秒重试节流）。
+
+### 版本
+- 工具内版本号同步至 **v1.1.10.1**。
+
+---
+
 ## v1.10.0（2026-11-15）（来自协助开发者）
 
 ### 新增：ZIP 谱面包导入（解压即玩）

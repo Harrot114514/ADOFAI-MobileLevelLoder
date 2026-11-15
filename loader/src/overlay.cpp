@@ -857,7 +857,7 @@ static void draw_settings_page() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.10.0", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+    ImGui::TextDisabled("%s v1.1.10.1", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }

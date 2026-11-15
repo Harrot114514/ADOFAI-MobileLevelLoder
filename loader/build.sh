@@ -41,6 +41,7 @@ clang++ $COMMON -c -o $OUT/shims.o    $SRC/shims.cpp
 clang++ $COMMON -c -o $OUT/asm.o      $SRC/hooks_asm.S
 clang++ $COMMON -c -o $OUT/zipfile.o    $SRC/zipfile.cpp
 clang++ $COMMON -c -o $OUT/zipimport.o  $SRC/zipimport.cpp
+clang++ $COMMON -c -o $OUT/renderfix.o  $SRC/renderfix.cpp
 
 clang++ $COMMON -c -o $OUT/imgui.o          $IMGUI/imgui.cpp
 clang++ $COMMON -c -o $OUT/imgui_draw.o     $IMGUI/imgui_draw.cpp
@@ -66,7 +67,7 @@ clang++ $COMMON -shared -o $OUT/libadofailoader.so \
   -Wl,--gc-sections \
   $OUT/main.o $OUT/util.o $OUT/hooks.o $OUT/il2cpp.o $OUT/game.o \
   $OUT/input.o $OUT/render.o $OUT/overlay.o $OUT/shims.o $OUT/asm.o \
-  $OUT/zipfile.o $OUT/zipimport.o \
+  $OUT/zipfile.o $OUT/zipimport.o $OUT/renderfix.o \
   $OUT/imgui.o $OUT/imgui_draw.o $OUT/imgui_tables.o $OUT/imgui_widgets.o $OUT/imgui_gl3.o \
   $SYSLIB/libc++.a $CLANG_LIB/aarch64-unknown-linux-musl/libc++abi.a \
   $SYSLIB/libc.so $SYSLIB/libdl.so $SYSLIB/libm.so $SYSLIB/liblog.so \

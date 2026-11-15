@@ -1,4 +1,5 @@
 #include "game.hpp"
+#include "renderfix.hpp"
 #include "hooks.hpp"
 #include "il2cpp.hpp"
 #include "util.hpp"
@@ -84,6 +85,9 @@ static bool resolve_bindings() {
 }
 
 bool game_init() {
+    // Defensive render hooks are independent of the game bindings below, so
+    // they are installed (idempotent, throttled) even when a lookup fails.
+    renderfix_install();
     if (g_ready) return true;
     if (!g_il2cpp_base) {
         g_il2cpp_base = find_module_base("libil2cpp.so");
@@ -109,6 +113,7 @@ static void set_string_field(FieldInfo* f, const char* v) {
 
 bool game_load_level(const char* level_path) {
     if (!game_init()) { LOGE("game: not ready"); return false; }
+    renderfix_install();   // in case the first attempt ran before the class existed
     if (!level_path || !level_path[0]) return false;
 
     // PC leftover state that must be sane before entering scnGame:
