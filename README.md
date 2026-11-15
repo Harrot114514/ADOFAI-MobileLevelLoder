@@ -20,8 +20,8 @@ adofai-mobilelevelloder/
 │   └── com.fizzd.connectedworlds_3.3.1.cs
 ├── loader/                     本工具源码与产物
 │   ├── build.sh                构建脚本
-│   ├── src/                    源码
-│   ├── tests/                  宿主机单元测试（hook 引擎/输入状态机）
+│   ├── src/                    源码（zipfile/zipimport 为压缩包导入模块）
+│   ├── tests/                  宿主机单元测试（hook 引擎/输入状态机/ZIP 导入）
 │   ├── ReverseDocumentation.md 完整逆向分析文档（加载链路/输入链路/hook 设计）
 │   ├── RemoveVerification.md   谷歌校验去除方式
 │   └── out/libadofailoader.so  最终产物（放入 APK lib/arm64-v8a/）
@@ -38,6 +38,8 @@ adofai-mobilelevelloder/
    - 在 dex 中植入 `System.loadLibrary("adofailoader")`
    - 重打包、签名、安装
 3. 启动游戏，左上角可见「加载关卡」按钮（可拖动），点击后弹出文件选择器，选择 `.adofai` 谱面文件即可加载游玩（谱面 + 音乐 + 背景图齐全）。
+4. 也可以在文件选择器里**直接选中 `.zip` 谱面包**：工具会自动解压到游戏数据目录再加载；
+   包内有多个 `.adofai` 时会弹出列表让你选一个。
 
 
 ## 功能一览（正式版 v1.0）
@@ -45,6 +47,8 @@ adofai-mobilelevelloder/
 - **文件选择器**：支持路径跳转（上级目录 / 游戏数据目录 / sdcard 根目录）、触摸滑动、滚动条、▲▼按钮，并仅显示关卡文件（过滤非 `.adofai` 后缀）
 - **悬浮按钮**：点击打开文件选择器，按住可拖动，位置自动记忆
 - **关卡加载**：完整调用 `LoadCustomLevel` 管线，谱面、音乐、背景图全部正常加载
+- **加载二次确认**：文件选择页点关卡/压缩包后先弹确认框（类型 + 文件名 + 完整路径）；压缩包内的谱面列表同样是「选中 → 确认加载关卡」两步，点错只会多按一次取消
+- **ZIP 谱面包导入**：文件选择器里可直接选中 `.zip`，后台线程解压到 `files/zipcache/import/`（带进度条与取消），自动挑出包内谱面；只有 1 个谱面时直接进入，多个时弹窗选择；解压路径经过净化（拒绝 zip-slip / 绝对路径），损坏包有 CRC 校验报错
 - **游戏暂停控制**：在游戏中打开加载器自动暂停，关闭后自动恢复
 - **双主题**：暗色 / 亮色（搭配双缩脲紫强调色）
 - **设置页**：支持语言切换（中文 / English）

@@ -2,6 +2,7 @@
 #include "input.hpp"
 #include "util.hpp"
 #include "game.hpp"
+#include "zipimport.hpp"
 
 #include "imgui.h"
 #include "imgui_impl_opengl3.h"
@@ -9,6 +10,7 @@
 
 #include <dirent.h>
 #include <sys/stat.h>
+#include <unistd.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -37,6 +39,11 @@ static int  g_diff_setting = 1;         // 难度: 0=宽松 1=普通 2=严格
 static const ImVec4 kViolet       = ImVec4(0.55f, 0.36f, 0.71f, 1.0f);
 static const ImVec4 kVioletHover  = ImVec4(0.65f, 0.47f, 0.80f, 1.0f);
 static const ImVec4 kVioletActive = ImVec4(0.45f, 0.29f, 0.60f, 1.0f);
+
+// destructive-action red (delete button / confirm dialog)
+static const ImVec4 kDel       = ImVec4(0.72f, 0.22f, 0.25f, 1.0f);
+static const ImVec4 kDelHover  = ImVec4(0.82f, 0.30f, 0.32f, 1.0f);
+static const ImVec4 kDelActive = ImVec4(0.62f, 0.18f, 0.22f, 1.0f);
 
 static void apply_theme(float scale) {
     ImGuiStyle& st = ImGui::GetStyle();
@@ -297,10 +304,15 @@ struct FsEntry {
     std::string name;
     bool is_dir = false;
     bool is_level = false;
+    bool is_zip = false;
 };
 static std::vector<FsEntry> g_entries;
 static int g_selected = -1;
 static bool g_show_only_levels = true;
+
+// delete confirmation state
+static std::string g_del_path;   // full path awaiting confirmation
+static bool g_del_is_dir = false;
 
 static int g_status_kind = 0;   // 0 none, 1 info, 2 warn, 3 ok
 static char g_status[256] = "";
@@ -407,7 +419,8 @@ static bool scan_dir() {
         if (stat(full.c_str(), &st) != 0) continue;
         e.is_dir = S_ISDIR(st.st_mode);
         e.is_level = !e.is_dir && ends_with(de->d_name, ".adofai");
-        if (!e.is_dir && !e.is_level && g_show_only_levels) continue;
+        e.is_zip   = !e.is_dir && !e.is_level && ends_with(de->d_name, ".zip");
+        if (!e.is_dir && !e.is_level && !e.is_zip && g_show_only_levels) continue;
         g_entries.push_back(std::move(e));
     }
     closedir(d);
@@ -436,6 +449,71 @@ static void go_up() {
     set_cwd(cur.c_str());
 }
 
+// Level picked in the archive's level list, waiting for the confirmation step
+// (-1 = list is showing).
+static int g_zip_chosen = -1;
+
+// Set when a zip import was started from this overlay session: a single level
+// found inside is then loaded without asking. Cleared as soon as the overlay
+// closes, so a late-finishing import never changes the level behind the
+// player's back (it shows the picker instead).
+static bool g_zip_auto_load = false;
+// set while a cancel request is in flight (the worker owns the state until it
+// notices and cleans up)
+static bool g_zip_cancelling = false;
+
+// Load request waiting for the user's confirmation (tapping a level or an
+// archive used to start loading immediately - one mis-tap and the current
+// level was gone).
+static std::string g_pending_path;   // absolute path of the level / archive
+static std::string g_pending_name;   // what to show in the dialog
+static bool        g_pending_is_zip = false;
+
+// Modal dialogs use a fixed fraction of the screen width. An
+// ImGuiWindowFlags_AlwaysAutoResize window is sized from its content, so a
+// TextWrapped text inside it would wrap to the (still tiny) current width and
+// freeze the window at "one character per line" - exactly the narrow column
+// this helper avoids.
+static float dialog_width() { return ImGui::GetIO().DisplaySize.x * 0.82f; }
+
+// Title (and therefore popup ID) of the "really load this level?" dialog.
+// Shared by every entry point that can start a load - the file browser and the
+// level picker of an imported archive.
+static const char* load_confirm_title() { return S("确认加载关卡", "Confirm load"); }
+
+// Hands a level file to the game main thread and closes the overlay so the
+// player can play. Shared by the file browser and the zip importer.
+static void start_level_load(const std::string& path) {
+    if (path.empty()) return;
+    LOGI("overlay: load '%s'", path.c_str());
+    set_status(3, "已发送加载指令，正在进入关卡…", "Load issued, entering level...");
+    input_queue_load_level(path.c_str());
+    // close overlay so the player can play
+    g_open = false;
+    input_set_ui_open(false);
+    input_queue_resume_overlay_pause();
+    save_settings();
+}
+
+// Scratch root for imported archives: <game data dir>/files/zipcache/import
+// (always writable by the game process, unlike /sdcard on scoped storage).
+static std::string zip_work_root() {
+    init_default_dir();
+    std::string root = g_default_dir;
+    root += "files/zipcache/import";
+    return root;
+}
+
+static void start_zip_import(const std::string& zip_path) {
+    if (!zip_import_begin(zip_path.c_str(), zip_work_root().c_str())) {
+        set_status(2, "无法开始解压（可能已有任务在进行）", "Cannot start extraction (import already running)");
+        return;
+    }
+    g_zip_auto_load = true;
+    g_zip_chosen = -1;
+    set_status(1, "正在解压压缩包…", "Extracting archive...");
+}
+
 static void activate_entry(int i) {
     if (i < 0 || i >= (int)g_entries.size()) return;
     FsEntry& e = g_entries[i];
@@ -447,20 +525,177 @@ static void activate_entry(int i) {
         set_cwd(full.c_str());
         return;
     }
-    if (e.is_level) {
+    if (e.is_level || e.is_zip) {
         std::string full = g_cwd;
         if (!full.empty() && full.back() != '/') full += '/';
         full += e.name;
-        set_status(3, "已发送加载指令，正在进入关卡…", "Load issued, entering level...");
-        input_queue_load_level(full.c_str());
-        // close overlay so the player can play
-        g_open = false;
-        input_set_ui_open(false);
-        input_queue_resume_overlay_pause();
-        save_settings();
+        g_pending_path = full;
+        g_pending_name = e.name;
+        g_pending_is_zip = e.is_zip;
         return;
     }
-    set_status(2, "只能加载 .adofai 关卡文件", "Only .adofai level files can be loaded");
+    set_status(2, "只能加载 .adofai 关卡文件或 .zip 谱面包",
+               "Only .adofai levels or .zip level packs can be loaded");
+}
+
+// -------------------------------------------------------------- delete
+
+static std::string full_path_of(int i) {
+    std::string full = g_cwd;
+    if (!full.empty() && full.back() != '/') full += '/';
+    full += g_entries[i].name;
+    return full;
+}
+
+// Recursively delete a file or directory (symlinks are unlinked, never
+// followed). Returns true when everything was removed.
+static bool delete_path_recursive(const char* path) {
+    struct stat st;
+    if (lstat(path, &st) != 0) return false;
+    if (S_ISDIR(st.st_mode)) {
+        DIR* d = opendir(path);
+        if (!d) return false;
+        struct dirent* de;
+        bool ok = true;
+        while ((de = readdir(d)) != nullptr) {
+            if (strcmp(de->d_name, ".") == 0 || strcmp(de->d_name, "..") == 0) continue;
+            std::string child = path;
+            if (!child.empty() && child.back() != '/') child += '/';
+            child += de->d_name;
+            if (!delete_path_recursive(child.c_str())) ok = false;
+        }
+        closedir(d);
+        if (rmdir(path) != 0) ok = false;
+        return ok;
+    }
+    return unlink(path) == 0;
+}
+
+// Red destructive button; returns true when clicked.
+static bool RedButton(const char* label, const ImVec2& size) {
+    ImGui::PushStyleColor(ImGuiCol_Button, kDel);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kDelHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, kDelActive);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    bool clicked = ImGui::Button(label, size);
+    ImGui::PopStyleColor(4);
+    return clicked;
+}
+
+// Draw the delete button for entry i and open the confirmation popup.
+static void request_delete(int i, const ImVec2& size) {
+    if (i < 0 || i >= (int)g_entries.size()) return;
+    if (RedButton(S("删除", "Delete"), size)) {
+        g_del_path = full_path_of(i);
+        g_del_is_dir = g_entries[i].is_dir;
+        ImGui::OpenPopup(S("删除确认", "Confirm delete"));
+    }
+}
+
+// Modal confirmation dialog for the pending delete (drawn after the list).
+static void draw_delete_confirm() {
+    bool open = true;
+    const float dlg_w = dialog_width();
+    ImGui::SetNextWindowSizeConstraints(ImVec2(dlg_w, 0.0f), ImVec2(dlg_w, 100000.0f));
+    if (!ImGui::BeginPopupModal(S("删除确认", "Confirm delete"), &open,
+                                ImGuiWindowFlags_AlwaysAutoResize))
+        return;
+    ImGui::TextWrapped("%s", S("确定要删除以下内容吗？此操作无法撤销。",
+                               "Delete the following? This cannot be undone."));
+    ImGui::Spacing();
+    ImGui::TextWrapped("%s", g_del_path.c_str());
+    if (g_del_is_dir) {
+        ImGui::Spacing();
+        ImGui::TextColored(ImVec4(0.95f, 0.45f, 0.35f, 1.0f), "%s",
+            S("这是一个目录，里面的全部文件都会被删除！",
+              "This is a directory: everything inside it will be deleted!"));
+    }
+    ImGui::Spacing();
+    float w = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+    if (ImGui::Button(S("取消", "Cancel"), ImVec2(w, 0))) {
+        ImGui::CloseCurrentPopup();
+        g_del_path.clear();
+    }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, kDel);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kDelHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, kDelActive);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    if (ImGui::Button(S("确认删除", "Delete"), ImVec2(w, 0))) {
+        bool ok = !g_del_path.empty() && delete_path_recursive(g_del_path.c_str());
+        ImGui::CloseCurrentPopup();
+        g_del_path.clear();
+        scan_dir(); // refresh listing (resets selection); then report result
+        if (ok) set_status(3, "已删除所选内容", "Selected item deleted");
+        else set_status(2, "删除失败（可能没有权限）", "Delete failed (no permission?)");
+    }
+    ImGui::PopStyleColor(4);
+    ImGui::EndPopup();
+}
+
+// Second tap that actually starts loading. Tapping a level / archive only
+// arms this dialog, so a mis-tap costs one more tap instead of the level.
+static void draw_load_confirm() {
+    const char* title = load_confirm_title();
+    if (g_pending_path.empty()) return;
+    // Open from this (main window) context: a popup opened inside the level
+    // picker would hash its ID against that window and never match here.
+    if (!ImGui::IsPopupOpen(title)) ImGui::OpenPopup(title);
+
+    const float dlg_w = dialog_width();
+    ImGui::SetNextWindowSizeConstraints(ImVec2(dlg_w, 0.0f), ImVec2(dlg_w, 100000.0f));
+    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+
+    bool        go = false;
+    std::string path;
+    bool        is_zip = false;
+
+    ImGui::TextWrapped("%s", g_pending_is_zip
+        ? S("确定要解压并加载这个谱面包吗？", "Extract this level pack and play it?")
+        : S("确定要加载这个关卡吗？", "Load this level?"));
+    ImGui::Spacing();
+    ImGui::TextWrapped("%s%s", g_pending_is_zip ? S("[压缩包] ", "[ZIP] ") : "",
+                       g_pending_name.c_str());
+    ImGui::Spacing();
+    ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+    ImGui::TextWrapped("%s", g_pending_path.c_str());
+    ImGui::PopStyleColor();
+    if (g_pending_is_zip) {
+        ImGui::Spacing();
+        ImGui::TextDisabled("%s", S("压缩包会被解压到游戏数据目录，里面有多个谱面时会再让你选",
+                                    "It is extracted into the game data dir; you pick a level if there are several"));
+    }
+    ImGui::Spacing();
+
+    const float bw = (ImGui::GetContentRegionAvail().x - ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+    if (ImGui::Button(S("取消", "Cancel"), ImVec2(bw, 0))) {
+        g_pending_path.clear();
+        g_pending_name.clear();
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::SameLine();
+    ImGui::PushStyleColor(ImGuiCol_Button, kViolet);
+    ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kVioletHover);
+    ImGui::PushStyleColor(ImGuiCol_ButtonActive, kVioletActive);
+    ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+    if (ImGui::Button(S("▶ 加载", "> Load"), ImVec2(bw, 0))) {
+        path = g_pending_path;
+        is_zip = g_pending_is_zip;
+        g_pending_path.clear();
+        g_pending_name.clear();
+        // drop a level picker that is still open behind this dialog
+        zip_import_reset();
+        go = true;
+        ImGui::CloseCurrentPopup();
+    }
+    ImGui::PopStyleColor(4);
+    ImGui::EndPopup();
+
+    // start after EndPopup() so the overlay can close safely
+    if (go && !path.empty()) {
+        if (is_zip) start_zip_import(path);
+        else start_level_load(path);
+    }
 }
 
 // -------------------------------------------------------------- input map
@@ -622,12 +857,198 @@ static void draw_settings_page() {
     ImGui::Spacing();
     ImGui::Separator();
     ImGui::Spacing();
-    ImGui::TextDisabled("%s v1.1.9", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
+    ImGui::TextDisabled("%s v1.10.0", S("冰与火之舞 移动版铺面加载器", "ADoFAI Mobile Level Loader"));
     ImGui::TextDisabled("%s", S("设置保存在游戏数据目录 files/adofai_loader.ini",
                                "Settings are saved in the game data dir: files/adofai_loader.ini"));
 }
 
 // -------------------------------------------------------------- UI
+
+// Immediate drag-to-scroll for a scrollable child window (touch screens have
+// no mouse wheel). Call right after BeginChild().
+static void child_touch_scroll() {
+    static bool  dragging = false;
+    static float last_y = 0;
+    if (!ImGui::IsWindowHovered()) { dragging = false; return; }
+    ImGuiIO& io = ImGui::GetIO();
+    if (io.MouseDown[0]) {
+        if (!dragging) dragging = true;
+        else if (io.MousePos.y != last_y) {
+            ImGui::SetScrollY(ImGui::GetScrollY() - (io.MousePos.y - last_y));
+        }
+        last_y = io.MousePos.y;
+    } else {
+        dragging = false;
+    }
+}
+
+// -------------------------------------------------------------- zip import
+
+static const char* zip_error_text(int code) {
+    switch (code) {
+        case ZIPERR_OPEN:     return S("无法打开压缩包（不是有效的 zip 或文件已损坏）",
+                                       "Cannot open the archive (invalid or corrupted zip)");
+        case ZIPERR_EXTRACT:  return S("解压失败：压缩包内的数据已损坏",
+                                       "Extraction failed: corrupted data inside the archive");
+        case ZIPERR_DISK:     return S("无法写入解压目录（空间不足或无权限）",
+                                       "Cannot write the extraction directory (no space / permission)");
+        case ZIPERR_NO_LEVEL: return S("压缩包内没有 .adofai 谱面文件",
+                                       "No .adofai level found in this archive");
+        case ZIPERR_TOO_BIG:  return S("压缩包解压后体积超出安全上限（4 GB）",
+                                       "The archive expands beyond the 4 GB safety limit");
+        default:              return S("导入失败", "Import failed");
+    }
+}
+
+// Progress / result dialog for the running zip import. Also auto-loads the
+// level when a pack contains exactly one .adofai and the user started the
+// import from this session (g_zip_auto_load).
+static void draw_zip_import() {
+    int st = zip_import_state();
+    if (st != ZIPIMP_WORKING) g_zip_cancelling = false;
+    if (st != ZIPIMP_READY) g_zip_chosen = -1;
+    if (st == ZIPIMP_IDLE) return;
+
+    std::vector<std::string> abs_paths, rel_names;
+    if (st == ZIPIMP_READY) zip_import_levels(&abs_paths, &rel_names);
+
+    const char* title = S("导入压缩包", "Import archive");
+
+    // Single level, started here: no question needed.
+    if (st == ZIPIMP_READY && g_zip_auto_load && abs_paths.size() == 1) {
+        LOGI("zip: single level '%s'", rel_names[0].c_str());
+        std::string path = abs_paths[0];
+        g_zip_auto_load = false;
+        zip_import_reset();
+        // no BeginPopupModal() this frame -> ImGui closes the dialog itself
+        start_level_load(path);
+        return;
+    }
+
+    if (!ImGui::IsPopupOpen(title)) ImGui::OpenPopup(title);
+
+    const float dlg_w = dialog_width();
+    ImGui::SetNextWindowSizeConstraints(ImVec2(dlg_w, 0.0f), ImVec2(dlg_w, 100000.0f));
+    if (!ImGui::BeginPopupModal(title, nullptr, ImGuiWindowFlags_AlwaysAutoResize)) return;
+
+    bool        close_popup = false;
+    std::string pending_path;
+
+    if (st == ZIPIMP_WORKING) {
+        int done = 0, total = 0;
+        std::string current;
+        zip_import_progress(&done, &total, &current);
+
+        ImGui::Text("%s", S("正在解压谱面包…", "Extracting level pack..."));
+        ImGui::Spacing();
+        char overlay_text[64];
+        if (total > 0) snprintf(overlay_text, sizeof(overlay_text), "%d / %d", done, total);
+        else overlay_text[0] = 0;
+        const float frac = (total > 0) ? (float)done / (float)total : 0.0f;
+        ImGui::ProgressBar(frac, ImVec2(-1, 0), overlay_text);
+        if (!current.empty()) {
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+            ImGui::TextWrapped("%s", current.c_str());
+            ImGui::PopStyleColor();
+        }
+        ImGui::Spacing();
+        if (g_zip_cancelling) {
+            ImGui::TextDisabled("%s", S("正在取消…", "Cancelling..."));
+        } else if (ImGui::Button(S("取消", "Cancel"), ImVec2(-1, 0))) {
+            g_zip_cancelling = true;
+            g_zip_auto_load = false;
+            zip_import_cancel();
+        }
+    } else if (st == ZIPIMP_READY) {
+        if (g_zip_chosen >= (int)abs_paths.size()) g_zip_chosen = -1;
+
+        if (g_zip_chosen < 0) {
+            // ---- step 1: pick a level -------------------------------------
+            if (rel_names.size() > 1) {
+                ImGui::TextWrapped("%s", S("压缩包内有多个谱面，请选择要打开的一个：",
+                                           "This archive contains more than one level - pick one to open:"));
+            } else {
+                ImGui::TextWrapped("%s", S("压缩包内找到 1 个谱面：",
+                                           "One level found in this archive:"));
+            }
+            ImGui::Spacing();
+            const float list_h = ImGui::GetTextLineHeightWithSpacing() * 7.0f;
+            int chosen = -1;
+            if (ImGui::BeginChild("##ziplevels", ImVec2(0, list_h), true)) {
+                child_touch_scroll();
+                for (int i = 0; i < (int)rel_names.size(); i++) {
+                    if (ImGui::Selectable(rel_names[i].c_str(), false)) chosen = i;
+                }
+            }
+            ImGui::EndChild();
+            ImGui::TextDisabled(S("共 %d 个谱面", "%d level(s) in this archive"),
+                                (int)rel_names.size());
+            ImGui::Spacing();
+            if (chosen >= 0) {
+                // Tapping a level used to start it right away; park the choice
+                // and let the user confirm on the next step instead.
+                LOGI("zip: picked '%s', asking for confirmation", rel_names[chosen].c_str());
+                g_zip_chosen = chosen;
+            } else if (ImGui::Button(S("取消", "Cancel"), ImVec2(-1, 0))) {
+                g_zip_auto_load = false;
+                zip_import_reset();
+                close_popup = true;
+            }
+        } else {
+            // ---- step 2: confirm the picked level -------------------------
+            ImGui::TextWrapped("%s", S("确认加载关卡？", "Load this level?"));
+            ImGui::Spacing();
+            ImGui::TextWrapped("%s", rel_names[g_zip_chosen].c_str());
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+            ImGui::TextWrapped("%s", abs_paths[g_zip_chosen].c_str());
+            ImGui::PopStyleColor();
+            ImGui::Spacing();
+
+            const float bw = (ImGui::GetContentRegionAvail().x -
+                              ImGui::GetStyle().ItemSpacing.x) / 2.0f;
+            if (ImGui::Button(S("取消", "Cancel"), ImVec2(bw, 0))) {
+                g_zip_chosen = -1;   // back to the list, nothing is lost
+            }
+            ImGui::SameLine();
+            ImGui::PushStyleColor(ImGuiCol_Button, kViolet);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kVioletHover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, kVioletActive);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+            if (ImGui::Button(S("▶ 加载关卡", "> Load level"), ImVec2(bw, 0))) {
+                pending_path = abs_paths[g_zip_chosen];
+                g_zip_chosen = -1;
+                g_zip_auto_load = false;
+                zip_import_reset();
+                close_popup = true;
+            }
+            ImGui::PopStyleColor(4);
+        }
+    } else { // ZIPIMP_FAILED
+        int code = zip_import_error_code();
+        std::string detail;
+        zip_import_error_detail(&detail);
+        ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(0.95f, 0.45f, 0.35f, 1.0f));
+        ImGui::TextWrapped("%s", zip_error_text(code));
+        ImGui::PopStyleColor();
+        if (!detail.empty()) {
+            ImGui::Spacing();
+            ImGui::PushStyleColor(ImGuiCol_Text, ImGui::GetStyle().Colors[ImGuiCol_TextDisabled]);
+            ImGui::TextWrapped("%s", detail.c_str());
+            ImGui::PopStyleColor();
+        }
+        ImGui::Spacing();
+        if (ImGui::Button(S("知道了", "OK"), ImVec2(-1, 0))) {
+            g_zip_auto_load = false;
+            zip_import_reset();
+            close_popup = true;
+        }
+    }
+
+    if (close_popup) ImGui::CloseCurrentPopup();
+    ImGui::EndPopup();
+    if (!pending_path.empty()) start_level_load(pending_path);
+}
 
 static void draw_file_browser() {
     // header: path + jump buttons
@@ -662,21 +1083,7 @@ static void draw_file_browser() {
 
     if (g_list_req) { ImGui::SetScrollY(g_list_req_val); g_list_req = false; }
 
-    // touch drag-to-scroll (immediate, no drag threshold)
-    static bool  list_dragging = false;
-    static float list_last_y = 0;
-    if (ImGui::IsWindowHovered()) {
-        ImGuiIO& io = ImGui::GetIO();
-        if (io.MouseDown[0]) {
-            if (!list_dragging) list_dragging = true;
-            else if (io.MousePos.y != list_last_y) {
-                ImGui::SetScrollY(ImGui::GetScrollY() - (io.MousePos.y - list_last_y));
-            }
-            list_last_y = io.MousePos.y;
-        } else {
-            list_dragging = false;
-        }
-    }
+    child_touch_scroll();
 
     // ".." when not at root
     if (strcmp(g_cwd, "/") != 0) {
@@ -691,6 +1098,7 @@ static void draw_file_browser() {
         char label[1024];
         if (e.is_dir) snprintf(label, sizeof(label), "[%s] %s", S("目录", "DIR"), e.name.c_str());
         else if (e.is_level) snprintf(label, sizeof(label), "[%s] %s", S("关卡", "LVL"), e.name.c_str());
+        else if (e.is_zip) snprintf(label, sizeof(label), "[%s] %s", S("压缩包", "ZIP"), e.name.c_str());
         else snprintf(label, sizeof(label), "     %s", e.name.c_str());
 
         bool sel = (i == g_selected);
@@ -723,18 +1131,41 @@ static void draw_file_browser() {
     if (g_selected >= 0 && g_selected < (int)g_entries.size()) {
         FsEntry& e = g_entries[g_selected];
         ImGui::Text("%s %s", S("已选择:", "Selected:"), e.name.c_str());
+
+        // main action + delete share one row (delete = ~30% width, red)
+        float avail = ImGui::GetContentRegionAvail().x;
+        float del_w = avail * 0.30f;
+        if (del_w < 64.0f * g_scale) del_w = 64.0f * g_scale;
+        float main_w = avail - del_w - ImGui::GetStyle().ItemSpacing.x;
+
         if (e.is_dir) {
-            if (ImGui::Button(S("进入目录", "Enter directory"), ImVec2(-1, item_h * 1.1f))) activate_entry(g_selected);
+            if (ImGui::Button(S("进入目录", "Enter directory"), ImVec2(main_w, item_h * 1.1f))) activate_entry(g_selected);
+            ImGui::SameLine();
+            request_delete(g_selected, ImVec2(del_w, item_h * 1.1f));
+        } else if (e.is_zip) {
+            ImGui::PushStyleColor(ImGuiCol_Button, kViolet);
+            ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kVioletHover);
+            ImGui::PushStyleColor(ImGuiCol_ButtonActive, kVioletActive);
+            ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
+            bool extract_clicked = ImGui::Button(S("▶ 解压并加载", "> Extract & play"), ImVec2(main_w, item_h * 1.1f));
+            ImGui::PopStyleColor(4);
+            if (extract_clicked) activate_entry(g_selected);
+            ImGui::SameLine();
+            request_delete(g_selected, ImVec2(del_w, item_h * 1.1f));
         } else if (e.is_level) {
             // biuret-violet accent button
             ImGui::PushStyleColor(ImGuiCol_Button, kViolet);
             ImGui::PushStyleColor(ImGuiCol_ButtonHovered, kVioletHover);
             ImGui::PushStyleColor(ImGuiCol_ButtonActive, kVioletActive);
             ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 1.0f, 1.0f, 1.0f));
-            if (ImGui::Button(S("▶ 加载所选关卡", "> Load selected level"), ImVec2(-1, item_h * 1.1f))) activate_entry(g_selected);
+            bool load_clicked = ImGui::Button(S("▶ 加载所选关卡", "> Load selected level"), ImVec2(main_w, item_h * 1.1f));
             ImGui::PopStyleColor(4);
+            if (load_clicked) activate_entry(g_selected);
+            ImGui::SameLine();
+            request_delete(g_selected, ImVec2(del_w, item_h * 1.1f));
         } else {
             ImGui::TextDisabled("%s", S("该文件不是关卡文件", "Not a level file"));
+            request_delete(g_selected, ImVec2(-1, item_h * 1.1f));
         }
     } else {
         ImGui::TextDisabled("%s", S("点击列表中的 .adofai 文件，然后加载", "Tap a .adofai file in the list, then load"));
@@ -746,7 +1177,18 @@ static void draw_file_browser() {
         else if (g_status_kind == 3) col = ImVec4(0.45f, 0.85f, 0.55f, 1.0f);
         ImGui::TextColored(col, "%s", g_status);
     }
-    ImGui::TextDisabled("%s", S("提示：把 .adofai 及同目录歌曲/图片放入游戏数据目录", "Tip: put .adofai (and its song/images in the same folder) into the game data dir"));
+    ImGui::TextDisabled("%s", S("提示：把 .adofai 及同目录歌曲/图片放入游戏数据目录",
+                               "Tip: put .adofai (and its song/images in the same folder) into the game data dir"));
+    ImGui::TextDisabled("%s", S("也可以直接选择 .zip 谱面包：自动解压后游玩，多个谱面时会让你选",
+                               "You can also pick a .zip level pack: it is extracted and played, and you choose when it holds several levels"));
+
+    // delete confirmation popup (renders on top of the browser when open)
+    draw_delete_confirm();
+    // zip import progress / level picker (may open the load confirmation)
+    draw_zip_import();
+    // "really load this level?" confirmation; drawn last so it stacks on top
+    // of the level picker when the player picked one there
+    draw_load_confirm();
 }
 
 static void draw_overlay(float w, float h) {
@@ -756,6 +1198,9 @@ static void draw_overlay(float w, float h) {
     // Interaction (tap=drag detection) is handled on the game thread in
     // input.cpp; this window is purely visual (NoInputs) and follows the rect.
     if (!g_open) {
+        g_zip_auto_load = false; // a later-finishing import must ask, not jump
+        g_pending_path.clear();  // an unconfirmed load dies with the panel
+        g_pending_name.clear();
         float bx0, by0, bx1, by1;
         input_get_button_rect(&bx0, &by0, &bx1, &by1); // Unity coords (y-up)
         ImVec2 pos(bx0, h - by1);
